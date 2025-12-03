@@ -25,7 +25,7 @@ namespace NiceHouse.Data
             }
 
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
 
             _devicesById.Clear();
             _devicesByRoomId.Clear();

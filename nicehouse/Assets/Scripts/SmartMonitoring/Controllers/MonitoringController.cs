@@ -22,6 +22,9 @@ namespace NiceHouse.SmartMonitoring
         [Tooltip("同一类型告警的最小间隔（秒）")]
         public float alarmCooldown = 60f;
 
+        [Tooltip("测试模式：禁用告警冷却时间（用于测试）")]
+        public bool testMode = false;
+
         [Header("监测设置")]
         [Tooltip("状态检查间隔（秒）")]
         public float checkInterval = 1f;
@@ -48,20 +51,35 @@ namespace NiceHouse.SmartMonitoring
 
         private void Start()
         {
+            // 延迟检查，确保所有 Manager 都已初始化
+            StartCoroutine(DelayedSubscribeEvents());
+        }
+
+        private System.Collections.IEnumerator DelayedSubscribeEvents()
+        {
+            // 等待一帧，确保所有 Awake 和 Start 都已执行
+            yield return null;
+
             // 订阅状态变化事件
             if (PersonStateController.Instance != null)
             {
                 PersonStateController.Instance.OnStateChanged += OnPersonStateChanged;
+                Debug.Log("[MonitoringController] PersonStateController.Instance is ready");
             }
             else
             {
-                Debug.LogWarning("[MonitoringController] PersonStateController.Instance is null!");
+                Debug.LogError("[MonitoringController] PersonStateController.Instance is null after initialization!");
             }
 
             // 订阅告警管理器事件
             if (AlarmManager.Instance != null)
             {
                 AlarmManager.Instance.OnAlarmAdded += OnAlarmAdded;
+                Debug.Log("[MonitoringController] AlarmManager.Instance is ready");
+            }
+            else
+            {
+                Debug.LogError("[MonitoringController] AlarmManager.Instance is null after initialization!");
             }
         }
 
@@ -143,16 +161,20 @@ namespace NiceHouse.SmartMonitoring
         /// </summary>
         private void CheckAndTriggerAlarm(AlarmType type, string roomId)
         {
-            // 检查告警冷却时间
-            if (_lastAlarmTime.ContainsKey(type))
+            // 测试模式下跳过冷却时间检查
+            if (!testMode)
             {
-                float timeSinceLastAlarm = Time.time - _lastAlarmTime[type];
-                if (timeSinceLastAlarm < alarmCooldown)
+                // 检查告警冷却时间
+                if (_lastAlarmTime.ContainsKey(type))
                 {
-                    // 检查是否是同一房间
-                    if (_lastAlarmRoom.ContainsKey(type) && _lastAlarmRoom[type] == roomId)
+                    float timeSinceLastAlarm = Time.time - _lastAlarmTime[type];
+                    if (timeSinceLastAlarm < alarmCooldown)
                     {
-                        return; // 还在冷却期内且是同一房间，不触发告警
+                        // 检查是否是同一房间
+                        if (_lastAlarmRoom.ContainsKey(type) && _lastAlarmRoom[type] == roomId)
+                        {
+                            return; // 还在冷却期内且是同一房间，不触发告警
+                        }
                     }
                 }
             }

@@ -49,7 +49,8 @@ namespace NiceHouse.Data
             }
 
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
+            // 如果需要跨场景保持，应该对 DataRoot 调用 DontDestroyOnLoad
 
             // 初始化数据
             Current = new VitalSignsData

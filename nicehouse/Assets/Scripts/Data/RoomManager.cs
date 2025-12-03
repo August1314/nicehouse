@@ -16,14 +16,35 @@ namespace NiceHouse.Data
 
         private void Awake()
         {
+            Initialize();
+        }
+
+        private void Start()
+        {
+            // 确保在 Start 时也初始化（防止 Awake 执行顺序问题）
+            if (Instance == null)
+            {
+                Initialize();
+            }
+        }
+
+        private void Initialize()
+        {
+            // 如果 Instance 已存在且不是当前对象，销毁当前对象
             if (Instance != null && Instance != this)
             {
+                Debug.LogWarning($"[RoomManager] Duplicate instance detected on {gameObject.name}, destroying duplicate.");
                 Destroy(gameObject);
                 return;
             }
 
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
+            // 如果 Instance 为 null，设置为当前对象
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+
+            // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
 
             _roomsById.Clear();
             var rooms = FindObjectsOfType<RoomDefinition>();
@@ -43,6 +64,8 @@ namespace NiceHouse.Data
 
                 _roomsById.Add(room.roomId, room);
             }
+
+            Debug.Log($"[RoomManager] Initialized with {_roomsById.Count} rooms");
         }
 
         /// <summary>

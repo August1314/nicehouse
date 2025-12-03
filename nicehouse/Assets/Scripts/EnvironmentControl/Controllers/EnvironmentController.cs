@@ -46,6 +46,24 @@ namespace NiceHouse.EnvironmentControl
                 Debug.LogWarning("[EnvironmentController] EnvironmentThresholds not assigned! Please create and assign a threshold configuration.");
             }
             
+            // 延迟启动，确保所有 Manager 都已初始化
+            StartCoroutine(DelayedStartMonitoring());
+        }
+
+        private System.Collections.IEnumerator DelayedStartMonitoring()
+        {
+            // 等待一帧，确保所有 Awake 和 Start 都已执行
+            yield return null;
+
+            if (RoomManager.Instance == null)
+            {
+                Debug.LogError("[EnvironmentController] RoomManager.Instance is null after initialization!");
+            }
+            else
+            {
+                Debug.Log("[EnvironmentController] RoomManager.Instance is ready");
+            }
+
             StartCoroutine(MonitorEnvironment());
         }
 

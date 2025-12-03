@@ -45,23 +45,46 @@ namespace NiceHouse.Data
 
         private void Awake()
         {
+            Initialize();
+        }
+
+        private void Start()
+        {
+            // 确保在 Start 时也初始化（防止 Awake 执行顺序问题）
+            if (Instance == null)
+            {
+                Initialize();
+            }
+        }
+
+        private void Initialize()
+        {
+            // 如果 Instance 已存在且不是当前对象，销毁当前对象
             if (Instance != null && Instance != this)
             {
+                Debug.LogWarning($"[PersonStateController] Duplicate instance detected on {gameObject.name}, destroying duplicate.");
                 Destroy(gameObject);
                 return;
             }
 
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
+            // 如果 Instance 为 null，设置为当前对象
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+
+            // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
 
             // 初始化状态
             Status = new PersonStatus
             {
                 state = PersonState.Idle,
-                currentRoomId = string.Empty,
+                currentRoomId = "LivingRoom01", // 默认房间，避免为空
                 stateDuration = 0f
             };
             _stateStartTime = Time.time;
+
+            Debug.Log("[PersonStateController] Initialized");
         }
 
         private void Update()
