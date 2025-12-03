@@ -45,11 +45,21 @@ namespace NiceHouse.UI
         [Header("告警信息")]
         public TextMeshProUGUI alarmListText;
 
+        [Header("显示设置")]
+        [Tooltip("是否在运行时显示此面板")]
+        public bool showInRuntime = false;
+
         [Header("更新设置")]
         [Tooltip("更新间隔（秒）")]
         public float updateInterval = 0.5f;
 
         private float _timer;
+
+        private void Start()
+        {
+            // 根据设置控制显示/隐藏
+            gameObject.SetActive(showInRuntime);
+        }
 
         private void Update()
         {

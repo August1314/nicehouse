@@ -54,22 +54,22 @@ namespace NiceHouse.EnvironmentControl
             // 绑定按钮事件
             if (airConditionerButton != null)
             {
-                airConditionerButton.onClick.AddListener(() => ToggleDevice(DeviceType.AirConditioner));
+                airConditionerButton.onClick.AddListener(() => ToggleDevice(NiceHouse.Data.DeviceType.AirConditioner));
             }
             
             if (airPurifierButton != null)
             {
-                airPurifierButton.onClick.AddListener(() => ToggleDevice(DeviceType.AirPurifier));
+                airPurifierButton.onClick.AddListener(() => ToggleDevice(NiceHouse.Data.DeviceType.AirPurifier));
             }
             
             if (fanButton != null)
             {
-                fanButton.onClick.AddListener(() => ToggleDevice(DeviceType.Fan));
+                fanButton.onClick.AddListener(() => ToggleDevice(NiceHouse.Data.DeviceType.Fan));
             }
             
             if (freshAirButton != null)
             {
-                freshAirButton.onClick.AddListener(() => ToggleDevice(DeviceType.FreshAirSystem));
+                freshAirButton.onClick.AddListener(() => ToggleDevice(NiceHouse.Data.DeviceType.FreshAirSystem));
             }
 
             // 绑定模式切换
@@ -108,11 +108,11 @@ namespace NiceHouse.EnvironmentControl
                 if (RoomManager.Instance != null && 
                     RoomManager.Instance.TryGetRoom(currentRoomId, out var room))
                 {
-                    roomNameText.text = $"<size=24><b>{room.displayName}</b></size>";
+                    roomNameText.text = $"<size=36><b>{room.displayName}</b></size>";
                 }
                 else
                 {
-                    roomNameText.text = $"<size=24><b>{currentRoomId}</b></size>";
+                    roomNameText.text = $"<size=36><b>{currentRoomId}</b></size>";
                 }
             }
 
@@ -123,27 +123,27 @@ namespace NiceHouse.EnvironmentControl
                 if (temperatureText != null)
                 {
                     string color = GetTemperatureColor(env.temperature);
-                    temperatureText.text = $"<color=#CCCCCC>Temperature:</color> <color={color}><b>{env.temperature:F1}</b></color><color=#CCCCCC>°C</color>";
+                    temperatureText.text = $"<size=30><color=#CCCCCC>Temperature:</color> <color={color}><b>{env.temperature:F1}</b></color><color=#CCCCCC>°C</color></size>";
                 }
 
                 // 湿度显示
                 if (humidityText != null)
                 {
-                    humidityText.text = $"<color=#CCCCCC>Humidity:</color> <b>{env.humidity:F1}</b><color=#CCCCCC>%</color>";
+                    humidityText.text = $"<size=30><color=#CCCCCC>Humidity:</color> <b>{env.humidity:F1}</b><color=#CCCCCC>%</color></size>";
                 }
 
                 // PM2.5显示（带颜色编码）
                 if (pm25Text != null)
                 {
                     string pmColor = GetPM25Color(env.pm25);
-                    pm25Text.text = $"<color=#CCCCCC>PM2.5:</color> <color={pmColor}><b>{env.pm25:F1}</b></color> <color=#CCCCCC>μg/m³</color>";
+                    pm25Text.text = $"<size=30><color=#CCCCCC>PM2.5:</color> <color={pmColor}><b>{env.pm25:F1}</b></color> <color=#CCCCCC>μg/m³</color></size>";
                 }
 
                 // PM10显示
                 if (pm10Text != null)
                 {
                     string pm10Color = GetPM10Color(env.pm10);
-                    pm10Text.text = $"<color=#CCCCCC>PM10:</color> <color={pm10Color}><b>{env.pm10:F1}</b></color> <color=#CCCCCC>μg/m³</color>";
+                    pm10Text.text = $"<size=30><color=#CCCCCC>PM10:</color> <color={pm10Color}><b>{env.pm10:F1}</b></color> <color=#CCCCCC>μg/m³</color></size>";
                 }
             }
             else
@@ -165,23 +165,23 @@ namespace NiceHouse.EnvironmentControl
             var devices = DeviceManager.Instance.GetDevicesInRoom(currentRoomId);
             
             // 空调状态
-            UpdateDeviceStatusText(devices, DeviceType.AirConditioner, airConditionerStatusText);
+            UpdateDeviceStatusText(devices, NiceHouse.Data.DeviceType.AirConditioner, airConditionerStatusText);
             
             // 净化器状态
-            UpdateDeviceStatusText(devices, DeviceType.AirPurifier, airPurifierStatusText);
+            UpdateDeviceStatusText(devices, NiceHouse.Data.DeviceType.AirPurifier, airPurifierStatusText);
             
             // 风扇状态
-            UpdateDeviceStatusText(devices, DeviceType.Fan, fanStatusText);
+            UpdateDeviceStatusText(devices, NiceHouse.Data.DeviceType.Fan, fanStatusText);
             
             // 新风系统状态
-            UpdateDeviceStatusText(devices, DeviceType.FreshAirSystem, freshAirStatusText);
+            UpdateDeviceStatusText(devices, NiceHouse.Data.DeviceType.FreshAirSystem, freshAirStatusText);
         }
 
         /// <summary>
         /// 更新单个设备的状态文本
         /// </summary>
         private void UpdateDeviceStatusText(System.Collections.Generic.IReadOnlyList<DeviceDefinition> devices, 
-            DeviceType deviceType, TextMeshProUGUI statusText)
+            NiceHouse.Data.DeviceType deviceType, TextMeshProUGUI statusText)
         {
             if (statusText == null) return;
 
@@ -192,16 +192,16 @@ namespace NiceHouse.EnvironmentControl
                 {
                     switch (deviceType)
                     {
-                        case DeviceType.AirConditioner:
+                        case NiceHouse.Data.DeviceType.AirConditioner:
                             controller = device.GetComponent<AirConditionerController>();
                             break;
-                        case DeviceType.AirPurifier:
+                        case NiceHouse.Data.DeviceType.AirPurifier:
                             controller = device.GetComponent<AirPurifierController>();
                             break;
-                        case DeviceType.Fan:
+                        case NiceHouse.Data.DeviceType.Fan:
                             controller = device.GetComponent<FanController>();
                             break;
-                        case DeviceType.FreshAirSystem:
+                        case NiceHouse.Data.DeviceType.FreshAirSystem:
                             controller = device.GetComponent<FreshAirController>();
                             break;
                     }
@@ -213,16 +213,16 @@ namespace NiceHouse.EnvironmentControl
             {
                 if (controller.IsOn)
                 {
-                    statusText.text = "<color=#00FF00><b>ON</b></color>";
+                    statusText.text = "<size=28><color=#00FF00><b>ON</b></color></size>";
                 }
                 else
                 {
-                    statusText.text = "<color=#888888>OFF</color>";
+                    statusText.text = "<size=28><color=#888888>OFF</color></size>";
                 }
             }
             else
             {
-                statusText.text = "<color=#FF0000>N/A</color>";
+                statusText.text = "<size=28><color=#FF0000>N/A</color></size>";
             }
         }
 
@@ -235,11 +235,11 @@ namespace NiceHouse.EnvironmentControl
             {
                 if (envController.autoMode)
                 {
-                    modeText.text = "<color=#00FF00><b>AUTO</b></color>";
+                    modeText.text = "<size=32><color=#00FF00><b>AUTO</b></color></size>";
                 }
                 else
                 {
-                    modeText.text = "<color=#FFAA00><b>MANUAL</b></color>";
+                    modeText.text = "<size=32><color=#FFAA00><b>MANUAL</b></color></size>";
                 }
             }
         }
@@ -247,7 +247,7 @@ namespace NiceHouse.EnvironmentControl
         /// <summary>
         /// 切换设备开关状态
         /// </summary>
-        private void ToggleDevice(DeviceType deviceType)
+        private void ToggleDevice(NiceHouse.Data.DeviceType deviceType)
         {
             if (envController == null) return;
 
@@ -261,7 +261,7 @@ namespace NiceHouse.EnvironmentControl
         /// <summary>
         /// 检查设备是否开启
         /// </summary>
-        private bool IsDeviceOn(DeviceType deviceType)
+        private bool IsDeviceOn(NiceHouse.Data.DeviceType deviceType)
         {
             if (DeviceManager.Instance == null) return false;
 
@@ -273,16 +273,16 @@ namespace NiceHouse.EnvironmentControl
                     BaseDeviceController controller = null;
                     switch (deviceType)
                     {
-                        case DeviceType.AirConditioner:
+                        case NiceHouse.Data.DeviceType.AirConditioner:
                             controller = device.GetComponent<AirConditionerController>();
                             break;
-                        case DeviceType.AirPurifier:
+                        case NiceHouse.Data.DeviceType.AirPurifier:
                             controller = device.GetComponent<AirPurifierController>();
                             break;
-                        case DeviceType.Fan:
+                        case NiceHouse.Data.DeviceType.Fan:
                             controller = device.GetComponent<FanController>();
                             break;
-                        case DeviceType.FreshAirSystem:
+                        case NiceHouse.Data.DeviceType.FreshAirSystem:
                             controller = device.GetComponent<FreshAirController>();
                             break;
                     }

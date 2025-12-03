@@ -146,7 +146,7 @@ namespace NiceHouse.EnvironmentControl
 
             foreach (var device in devices)
             {
-                if (device.type == DeviceType.AirPurifier)
+                if (device.type == NiceHouse.Data.DeviceType.AirPurifier)
                 {
                     var controller = device.GetComponent<AirPurifierController>();
                     if (controller != null && !controller.IsOn)
@@ -155,11 +155,12 @@ namespace NiceHouse.EnvironmentControl
                         purifierActivated = true;
                         if (enableDebugLog)
                         {
-                            Debug.Log($"[EnvironmentController] Auto-activated AirPurifier in {roomId} (PM2.5: {EnvironmentDataStore.Instance.TryGetRoomData(roomId, out var e) ? e.pm25 : 0})");
+                            float pm25Value = EnvironmentDataStore.Instance.TryGetRoomData(roomId, out var e) ? e.pm25 : 0f;
+                            Debug.Log($"[EnvironmentController] Auto-activated AirPurifier in {roomId} (PM2.5: {pm25Value})");
                         }
                     }
                 }
-                else if (device.type == DeviceType.FreshAirSystem)
+                else if (device.type == NiceHouse.Data.DeviceType.FreshAirSystem)
                 {
                     var controller = device.GetComponent<FreshAirController>();
                     if (controller != null && !controller.IsOn)
@@ -197,7 +198,7 @@ namespace NiceHouse.EnvironmentControl
             var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
             foreach (var device in devices)
             {
-                if (device.type == DeviceType.AirConditioner)
+                if (device.type == NiceHouse.Data.DeviceType.AirConditioner)
                 {
                     var controller = device.GetComponent<AirConditionerController>();
                     if (controller != null && !controller.IsOn)
@@ -226,7 +227,7 @@ namespace NiceHouse.EnvironmentControl
             var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
             foreach (var device in devices)
             {
-                if (device.type == DeviceType.AirConditioner)
+                if (device.type == NiceHouse.Data.DeviceType.AirConditioner)
                 {
                     var controller = device.GetComponent<AirConditionerController>();
                     if (controller != null && !controller.IsOn)
@@ -278,7 +279,7 @@ namespace NiceHouse.EnvironmentControl
         /// <summary>
         /// 手动触发设备控制（用于UI按钮）
         /// </summary>
-        public void ManualControlDevice(string roomId, DeviceType deviceType, bool turnOn)
+        public void ManualControlDevice(string roomId, NiceHouse.Data.DeviceType deviceType, bool turnOn)
         {
             if (DeviceManager.Instance == null)
             {
@@ -294,16 +295,16 @@ namespace NiceHouse.EnvironmentControl
                     
                     switch (deviceType)
                     {
-                        case DeviceType.AirConditioner:
+                        case NiceHouse.Data.DeviceType.AirConditioner:
                             controller = device.GetComponent<AirConditionerController>();
                             break;
-                        case DeviceType.AirPurifier:
+                        case NiceHouse.Data.DeviceType.AirPurifier:
                             controller = device.GetComponent<AirPurifierController>();
                             break;
-                        case DeviceType.Fan:
+                        case NiceHouse.Data.DeviceType.Fan:
                             controller = device.GetComponent<FanController>();
                             break;
-                        case DeviceType.FreshAirSystem:
+                        case NiceHouse.Data.DeviceType.FreshAirSystem:
                             controller = device.GetComponent<FreshAirController>();
                             break;
                     }
