@@ -10,7 +10,7 @@
 
 **模块编号：** FM-001
 
-**负责人：** [待分配]
+**负责人：** [梁力航]
 
 **关联需求：** 基础要求 - 功能项 - 环境智控（舒适 + 智慧）
 
@@ -58,13 +58,45 @@
   2. 播放空调导风板扫风动画
   3. 在UI上显示"制冷中"状态
 
-**场景3：手动控制设备**
+**场景3：温度过低自动制热**
+- **触发条件：** 监测到房间温度 < 18°C
+- **用户操作：** 无需操作（自动模式）
+- **系统响应：**
+  1. 自动开启空调，设定温度22°C（制热模式）
+  2. 播放空调导风板扫风动画
+  3. 在UI上显示"制热中"状态
+
+**场景4：湿度异常自动调节**
+- **触发条件：** 监测到房间湿度 < 30% 或 > 70%
+- **用户操作：** 无需操作（自动模式）
+- **系统响应：**
+  1. 湿度过低：开启加湿器（如有）或提示用户
+  2. 湿度过高：开启除湿器（如有）或开启空调除湿模式
+  3. 在UI上显示"调节中"状态
+
+**场景5：手动控制设备**
 - **触发条件：** 用户点击UI上的设备控制按钮
 - **用户操作：** 点击"开启空调"按钮
 - **系统响应：**
   1. 立即开启空调
   2. 更新UI显示设备状态
   3. 开始记录能耗
+
+**场景6：温控面板交互**
+- **触发条件：** 用户点击场景中的温控面板（Thermostat Panel）
+- **用户操作：** 鼠标点击温控面板GameObject
+- **系统响应：**
+  1. 弹出详细环境数据UI面板
+  2. 显示该房间的完整环境数据（温度、湿度、PM2.5、PM10）
+  3. 提供设备控制按钮
+
+**场景7：PM2.5传感器视觉反馈**
+- **触发条件：** 监测到房间PM2.5 > 75 μg/m³
+- **用户操作：** 无需操作（自动模式）
+- **系统响应：**
+  1. PM2.5传感器模型变红或材质Emission闪烁示警
+  2. 自动开启净化设备
+  3. 在UI上显示告警信息
 
 ---
 
@@ -88,13 +120,27 @@ EnvironmentControl/
 
 **关键类设计：**
 
-| 类名 | 职责 | 依赖 |
-|------|------|------|
-| `EnvironmentController` | 环境监测、阈值判断、自动联动 | `EnvironmentDataStore`, `DeviceManager`, `EnergyManager` |
-| `EnvironmentControlPanel` | UI显示、按钮事件处理 | `EnvironmentController` |
-| `AirConditionerController` | 空调设备控制、动画播放 | `DeviceDefinition`, `EnergyManager` |
-| `AirPurifierController` | 净化器设备控制、扇叶旋转 | `DeviceDefinition`, `EnergyManager` |
-| `FanController` | 风扇控制、扇叶旋转 | `DeviceDefinition`, `EnergyManager` |
+| 类名 | 职责 | 依赖 | 挂载位置 |
+|------|------|------|----------|
+| `EnvironmentController` | 环境监测、阈值判断、自动联动 | `EnvironmentDataStore`, `DeviceManager`, `EnergyManager` | 场景根节点（单例） |
+| `EnvironmentControlPanel` | UI显示、按钮事件处理 | `EnvironmentController` | UI Canvas |
+| `AirConditionerController` | 空调设备控制、动画播放 | `DeviceDefinition`, `EnergyManager` | 空调GameObject |
+| `AirPurifierController` | 净化器设备控制、扇叶旋转 | `DeviceDefinition`, `EnergyManager` | 净化器GameObject |
+| `FanController` | 风扇控制、扇叶旋转 | `DeviceDefinition`, `EnergyManager` | 风扇GameObject |
+| `FreshAirController` | 新风系统控制、状态显示 | `DeviceDefinition`, `EnergyManager` | 新风系统GameObject |
+| `ThermostatPanel` | 温控面板交互、弹出UI | `EnvironmentController` | 温控面板GameObject |
+| `PMSensorIndicator` | PM2.5传感器视觉反馈 | `EnvironmentDataStore` | PM2.5传感器GameObject |
+
+**设备状态枚举：**
+```csharp
+public enum DeviceState
+{
+    Off,        // 关闭
+    On,          // 开启
+    Running,     // 运行中
+    Error        // 故障
+}
+```
 
 #### 3.2 数据接口依赖
 
@@ -118,6 +164,11 @@ AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId)
 **参考文档：**
 - `docs/data-api-examples.md` - 第2节"环境数据"、第9节"综合示例：环境智控模块"
 - `docs/data-quick-reference.md` - EnvironmentDataStore、DeviceManager、EnergyManager
+
+**错误处理：**
+- 设备不存在：通过 `DeviceManager.Instance.TryGetDevice()` 检查，记录警告日志
+- 环境数据缺失：通过 `EnvironmentDataStore.Instance.TryGetRoomData()` 检查，使用默认值或跳过
+- 单例未初始化：检查 `Instance != null`，在 `Awake()` 或 `Start()` 中初始化
 
 #### 3.3 UI设计
 
@@ -174,6 +225,22 @@ AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId)
    - 开启时：播放动画、更新UI、开始记录能耗
    - 关闭时：停止动画、更新UI、停止记录能耗
 
+4. **多房间控制**
+   - 系统按房间独立监测和控制
+   - 每个房间有独立的阈值配置
+   - UI面板可以切换显示不同房间的数据
+   - 设备控制器挂载在对应房间的设备GameObject上
+
+5. **温控面板交互**
+   - 使用 Raycast 检测鼠标点击
+   - 点击后弹出该房间的详细环境数据面板
+   - 面板可以关闭，不影响主UI
+
+6. **传感器视觉反馈**
+   - PM2.5传感器根据环境数据动态改变材质颜色
+   - 超标时：红色 + Emission闪烁
+   - 正常时：绿色或默认颜色
+
 ---
 
 ### 4. 开发任务
@@ -196,6 +263,14 @@ AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId)
 - **输出：** 阈值配置数据
 - **验收标准：** 可以在Inspector中配置阈值，代码能读取配置
 - **预计工时：** 2小时
+- **配置字段：**
+  - `pm25Threshold` - PM2.5超标阈值（默认75 μg/m³）
+  - `pm10Threshold` - PM10超标阈值（默认150 μg/m³）
+  - `temperatureHighThreshold` - 温度过高阈值（默认28°C）
+  - `temperatureLowThreshold` - 温度过低阈值（默认18°C）
+  - `humidityHighThreshold` - 湿度过高阈值（默认70%）
+  - `humidityLowThreshold` - 湿度过低阈值（默认30%）
+  - `targetTemperature` - 自动模式目标温度（默认24°C）
 
 **任务 4.1.3：** 实现自动/手动模式切换
 - **描述：** 实现模式切换逻辑，自动模式下启用自动联动，手动模式下禁用
@@ -248,15 +323,34 @@ AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId)
 - **验收标准：** 新风系统能正确开启/关闭
 - **预计工时：** 2小时
 
+**任务 4.3.5：** 实现温控面板交互
+- **描述：** 实现点击温控面板弹出详细环境数据UI
+- **模型要求：** 温控面板作为独立GameObject，挂载Collider
+- **交互方式：** Raycast检测鼠标点击，弹出UI面板
+- **验收标准：** 点击面板能正确弹出UI，显示该房间环境数据
+- **预计工时：** 2小时
+
+**任务 4.3.6：** 实现PM2.5传感器视觉反馈
+- **描述：** 根据环境数据动态改变传感器材质颜色和Emission
+- **模型要求：** PM2.5传感器作为独立GameObject
+- **效果：** 超标时变红+闪烁，正常时绿色
+- **验收标准：** 传感器颜色随PM2.5值实时变化
+- **预计工时：** 1.5小时
+
 #### 4.4 测试与优化
 
 **任务 4.4.1：** 功能测试
 - **测试用例：**
   1. PM2.5超标时，净化器和新风系统自动开启
-  2. 温度过高时，空调自动开启
-  3. 手动模式下，自动联动不触发
-  4. 设备开关按钮响应正确
-  5. UI数据实时更新
+  2. 温度过高时，空调自动开启（制冷模式）
+  3. 温度过低时，空调自动开启（制热模式）
+  4. 湿度异常时，相应设备自动开启
+  5. 手动模式下，自动联动不触发
+  6. 设备开关按钮响应正确
+  7. UI数据实时更新
+  8. 温控面板点击交互正常
+  9. PM2.5传感器视觉反馈正确
+  10. 多房间独立控制正常
 - **验收标准：** 所有测试用例通过
 
 **任务 4.4.2：** 性能优化
@@ -334,7 +428,346 @@ AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId)
 
 ---
 
-### 7. 参考资料
+### 7. 代码实现示例
+
+#### 7.1 EnvironmentController 类结构示例
+
+```csharp
+using UnityEngine;
+using NiceHouse.Data;
+using System.Collections;
+
+namespace NiceHouse.EnvironmentControl
+{
+    /// <summary>
+    /// 环境智控核心控制器
+    /// 负责环境数据监测、阈值判断、自动联动
+    /// </summary>
+    public class EnvironmentController : MonoBehaviour
+    {
+        public static EnvironmentController Instance { get; private set; }
+        
+        [Header("配置")]
+        public EnvironmentThresholds thresholds;  // ScriptableObject配置
+        
+        [Header("控制参数")]
+        public float checkInterval = 1f;  // 检查间隔（秒）
+        public bool autoMode = true;  // 自动模式
+        
+        private void Awake()
+        {
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
+        }
+        
+        private void Start()
+        {
+            StartCoroutine(MonitorEnvironment());
+        }
+        
+        /// <summary>
+        /// 持续监测环境数据
+        /// </summary>
+        private IEnumerator MonitorEnvironment()
+        {
+            while (true)
+            {
+                if (autoMode)
+                {
+                    CheckAllRooms();
+                }
+                yield return new WaitForSeconds(checkInterval);
+            }
+        }
+        
+        /// <summary>
+        /// 检查所有房间的环境数据
+        /// </summary>
+        private void CheckAllRooms()
+        {
+            var allRooms = RoomManager.Instance.GetAllRooms();
+            foreach (var room in allRooms.Values)
+            {
+                CheckRoomEnvironment(room.roomId);
+            }
+        }
+        
+        /// <summary>
+        /// 检查单个房间的环境数据并触发联动
+        /// </summary>
+        private void CheckRoomEnvironment(string roomId)
+        {
+            if (!EnvironmentDataStore.Instance.TryGetRoomData(roomId, out var env))
+            {
+                return;
+            }
+            
+            // PM2.5超标检查
+            if (env.pm25 > thresholds.pm25Threshold)
+            {
+                TriggerAirPurification(roomId);
+            }
+            
+            // 温度检查
+            if (env.temperature > thresholds.temperatureHighThreshold)
+            {
+                TriggerCooling(roomId);
+            }
+            else if (env.temperature < thresholds.temperatureLowThreshold)
+            {
+                TriggerHeating(roomId);
+            }
+            
+            // 湿度检查
+            if (env.humidity > thresholds.humidityHighThreshold || 
+                env.humidity < thresholds.humidityLowThreshold)
+            {
+                TriggerHumidityControl(roomId);
+            }
+        }
+        
+        /// <summary>
+        /// 触发空气净化联动
+        /// </summary>
+        private void TriggerAirPurification(string roomId)
+        {
+            var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
+            foreach (var device in devices)
+            {
+                if (device.type == DeviceType.AirPurifier)
+                {
+                    // 开启净化器
+                    var controller = device.GetComponent<AirPurifierController>();
+                    if (controller != null && !controller.IsOn)
+                    {
+                        controller.TurnOn();
+                    }
+                }
+                else if (device.type == DeviceType.FreshAirSystem)
+                {
+                    // 开启新风系统
+                    var controller = device.GetComponent<FreshAirController>();
+                    if (controller != null && !controller.IsOn)
+                    {
+                        controller.TurnOn();
+                    }
+                }
+            }
+            
+            // 记录告警
+            AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId);
+        }
+        
+        /// <summary>
+        /// 触发制冷联动
+        /// </summary>
+        private void TriggerCooling(string roomId)
+        {
+            var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
+            foreach (var device in devices)
+            {
+                if (device.type == DeviceType.AirConditioner)
+                {
+                    var controller = device.GetComponent<AirConditionerController>();
+                    if (controller != null && !controller.IsOn)
+                    {
+                        controller.TurnOn();
+                        controller.SetTargetTemperature(thresholds.targetTemperature);
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 触发制热联动
+        /// </summary>
+        private void TriggerHeating(string roomId)
+        {
+            var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
+            foreach (var device in devices)
+            {
+                if (device.type == DeviceType.AirConditioner)
+                {
+                    var controller = device.GetComponent<AirConditionerController>();
+                    if (controller != null && !controller.IsOn)
+                    {
+                        controller.TurnOn();
+                        controller.SetTargetTemperature(22f);  // 制热目标温度
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// 触发湿度控制联动
+        /// </summary>
+        private void TriggerHumidityControl(string roomId)
+        {
+            // 根据实际设备类型实现
+            // 例如：开启加湿器、除湿器等
+        }
+        
+        /// <summary>
+        /// 切换自动/手动模式
+        /// </summary>
+        public void SetAutoMode(bool enabled)
+        {
+            autoMode = enabled;
+        }
+    }
+}
+```
+
+#### 7.2 设备控制器基类示例（AirConditionerController）
+
+```csharp
+using UnityEngine;
+using NiceHouse.Data;
+using System.Collections;
+
+namespace NiceHouse.EnvironmentControl
+{
+    /// <summary>
+    /// 空调控制器
+    /// 挂载在空调GameObject上
+    /// </summary>
+    [RequireComponent(typeof(DeviceDefinition))]
+    public class AirConditionerController : MonoBehaviour
+    {
+        [Header("动画组件")]
+        public Transform ventBlade;  // 导风板Transform（需手动指定）
+        public float sweepAngle = 30f;  // 扫风角度
+        public float sweepSpeed = 1f;  // 扫风速度
+        
+        [Header("状态")]
+        public bool isOn = false;
+        public float targetTemperature = 24f;
+        
+        private DeviceDefinition deviceDef;
+        private float currentAngle = 0f;
+        private bool isSweeping = false;
+        
+        private void Awake()
+        {
+            deviceDef = GetComponent<DeviceDefinition>();
+        }
+        
+        /// <summary>
+        /// 开启空调
+        /// </summary>
+        public void TurnOn()
+        {
+            if (isOn) return;
+            
+            isOn = true;
+            isSweeping = true;
+            
+            // 开始记录能耗
+            EnergyManager.Instance.StartConsume(deviceDef.deviceId);
+            
+            // 播放动画
+            if (ventBlade != null)
+            {
+                StartCoroutine(SweepAnimation());
+            }
+        }
+        
+        /// <summary>
+        /// 关闭空调
+        /// </summary>
+        public void TurnOff()
+        {
+            if (!isOn) return;
+            
+            isOn = false;
+            isSweeping = false;
+            
+            // 停止记录能耗
+            EnergyManager.Instance.StopConsume(deviceDef.deviceId);
+        }
+        
+        /// <summary>
+        /// 设置目标温度
+        /// </summary>
+        public void SetTargetTemperature(float temp)
+        {
+            targetTemperature = temp;
+        }
+        
+        /// <summary>
+        /// 导风板扫风动画
+        /// </summary>
+        private IEnumerator SweepAnimation()
+        {
+            float direction = 1f;
+            while (isSweeping)
+            {
+                currentAngle += direction * sweepSpeed * Time.deltaTime;
+                
+                if (currentAngle >= sweepAngle)
+                {
+                    currentAngle = sweepAngle;
+                    direction = -1f;
+                }
+                else if (currentAngle <= -sweepAngle)
+                {
+                    currentAngle = -sweepAngle;
+                    direction = 1f;
+                }
+                
+                if (ventBlade != null)
+                {
+                    ventBlade.localRotation = Quaternion.Euler(0, currentAngle, 0);
+                }
+                
+                yield return null;
+            }
+        }
+        
+        public bool IsOn => isOn;
+    }
+}
+```
+
+#### 7.3 阈值配置 ScriptableObject 示例
+
+```csharp
+using UnityEngine;
+
+namespace NiceHouse.EnvironmentControl
+{
+    /// <summary>
+    /// 环境阈值配置
+    /// 在Project窗口右键 Create > NiceHouse > EnvironmentThresholds 创建
+    /// </summary>
+    [CreateAssetMenu(fileName = "EnvironmentThresholds", menuName = "NiceHouse/EnvironmentThresholds")]
+    public class EnvironmentThresholds : ScriptableObject
+    {
+        [Header("PM2.5/PM10阈值")]
+        public float pm25Threshold = 75f;  // PM2.5超标阈值（μg/m³）
+        public float pm10Threshold = 150f;  // PM10超标阈值（μg/m³）
+        
+        [Header("温度阈值")]
+        public float temperatureHighThreshold = 28f;  // 温度过高阈值（℃）
+        public float temperatureLowThreshold = 18f;   // 温度过低阈值（℃）
+        public float targetTemperature = 24f;  // 自动模式目标温度（℃）
+        
+        [Header("湿度阈值")]
+        public float humidityHighThreshold = 70f;  // 湿度过高阈值（%）
+        public float humidityLowThreshold = 30f;   // 湿度过低阈值（%）
+    }
+}
+```
+
+---
+
+### 8. 参考资料
 
 - `docs/interactions.md` - 第1节"环境智控模块"
 - `docs/data-api-examples.md` - 第2节"环境数据"、第9节"综合示例：环境智控模块"
@@ -344,9 +777,10 @@ AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId)
 
 ---
 
-### 8. 更新记录
+### 9. 更新记录
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
 | 2025-01-XX | 1.0 | 初始版本 | [姓名] |
+| 2025-01-XX | 1.1 | 补充缺失场景、实现细节、代码示例 | [姓名] |
 
