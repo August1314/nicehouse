@@ -30,13 +30,21 @@ public class FirstPersonController : MonoBehaviour
     public float pitchLimit = 80f;
 
     [Header("光标控制")]
-    [Tooltip("进入游戏时是否自动锁定并隐藏鼠标")]
+    [Tooltip("进入游戏时是否自动锁定并隐藏鼠标（使用 UI 面板时建议关闭）")]
     public bool lockCursorOnStart = true;
 
     private CharacterController _controller;
     private float _verticalVelocity;
     private float _cameraPitch;
-    private bool _cursorLocked;
+    /// <summary>
+    /// 用户通过 Esc 切换的“长期锁定”状态。
+    /// </summary>
+    private bool _userLockedCursor;
+
+    /// <summary>
+    /// 是否正在按住右键进行临时视角控制。
+    /// </summary>
+    private bool _isRightMouseLookActive;
 
     private void Awake()
     {
@@ -53,22 +61,24 @@ public class FirstPersonController : MonoBehaviour
 
     private void OnEnable()
     {
-        if (lockCursorOnStart)
-        {
-            SetCursorLock(true);
-        }
+        _userLockedCursor = lockCursorOnStart;
+        _isRightMouseLookActive = false;
+        ApplyCursorLockState();
     }
 
     private void OnDisable()
     {
-        SetCursorLock(false);
+        _userLockedCursor = false;
+        _isRightMouseLookActive = false;
+        ApplyCursorLockState();
     }
 
     private void Update()
     {
         HandleCursorToggle();
 
-        if (_cursorLocked)
+        // 只要当前实际是锁定状态，就允许视角旋转。
+        if (IsCursorLocked())
         {
             HandleMouseLook();
         }
@@ -124,21 +134,39 @@ public class FirstPersonController : MonoBehaviour
 
     private void HandleCursorToggle()
     {
+        // Esc：切换“长期锁定”状态。适合纯 FPS 游玩模式。
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            SetCursorLock(!_cursorLocked);
+            _userLockedCursor = !_userLockedCursor;
         }
-        else if (!_cursorLocked && Input.GetMouseButtonDown(0))
+
+        // 按住右键：临时锁定光标并启用视角旋转；松开右键恢复原状态。
+        // 这样在 UI 模式下鼠标仍可用，只在你“按住右键拖拽”时临时进入观察模式。
+        if (Input.GetMouseButtonDown(1))
         {
-            SetCursorLock(true);
+            _isRightMouseLookActive = true;
         }
+        else if (Input.GetMouseButtonUp(1))
+        {
+            _isRightMouseLookActive = false;
+        }
+
+        ApplyCursorLockState();
     }
 
-    private void SetCursorLock(bool shouldLock)
+    /// <summary>
+    /// 计算综合的锁定状态（Esc 锁定 或 右键临时锁定），并应用到系统光标上。
+    /// </summary>
+    private void ApplyCursorLockState()
     {
-        _cursorLocked = shouldLock;
+        bool shouldLock = _userLockedCursor || _isRightMouseLookActive;
         Cursor.lockState = shouldLock ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !shouldLock;
+    }
+
+    private bool IsCursorLocked()
+    {
+        return Cursor.lockState == CursorLockMode.Locked;
     }
 }
 
