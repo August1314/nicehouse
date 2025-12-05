@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace NiceHouse.ControlHub
 {
@@ -12,7 +13,8 @@ namespace NiceHouse.ControlHub
         [SerializeField] private float maxDistance = 4f;
         [SerializeField] private LayerMask interactableLayers = ~0;
         [SerializeField] private CrosshairUI crosshairUI;
-        [SerializeField] private bool requireCursorLock = true;
+        [Tooltip("If false, interaction works like UI buttons (no cursor lock required). If true, requires cursor lock for FPS-style interaction.")]
+        [SerializeField] private bool requireCursorLock = false;
 
         private IRaycastInteractable _current;
 
@@ -24,29 +26,117 @@ namespace NiceHouse.ControlHub
             }
         }
 
+        [Header("Debug")]
+        [Tooltip("Enable debug logging for raycast hits")]
+        public bool enableDebugLog = false;
+        
+        [Tooltip("Always log when cursor is not locked (helps diagnose issues)")]
+        public bool logCursorLockStatus = false;
+
         private void Update()
         {
-            if (targetCamera == null) return;
-            if (requireCursorLock && Cursor.lockState != CursorLockMode.Locked)
+            if (targetCamera == null)
             {
+                if (enableDebugLog)
+                {
+                    Debug.LogWarning("[FPRaycastInteractor] Target camera is null!");
+                }
+                return;
+            }
+            
+            // Determine ray origin and direction based on cursor lock state
+            Ray ray;
+            bool isCursorLocked = Cursor.lockState == CursorLockMode.Locked;
+            
+            if (requireCursorLock && !isCursorLocked)
+            {
+                // Only log if explicitly enabled (not by default)
+                if (enableDebugLog && Time.frameCount % 60 == 0)
+                {
+                    Debug.Log("[FPRaycastInteractor] Cursor not locked, skipping raycast. Lock cursor to enable interaction.");
+                }
                 UpdateHoverTarget(null);
                 return;
             }
-
-            var ray = new Ray(targetCamera.transform.position, targetCamera.transform.forward);
+            
+            // If cursor is locked, use camera forward (FPS style)
+            // If cursor is not locked, use mouse position (UI button style)
+            if (isCursorLocked)
+            {
+                ray = new Ray(targetCamera.transform.position, targetCamera.transform.forward);
+            }
+            else
+            {
+                // Use mouse position to create ray (like UI buttons)
+                ray = targetCamera.ScreenPointToRay(Input.mousePosition);
+            }
+            
+            // Draw raycast line in Scene view for debugging
+            if (enableDebugLog)
+            {
+                Debug.DrawRay(ray.origin, ray.direction * maxDistance, Color.red);
+            }
 
             if (Physics.Raycast(ray, out var hit, maxDistance, interactableLayers, QueryTriggerInteraction.Ignore))
             {
+                if (enableDebugLog)
+                {
+                    Debug.Log($"[FPRaycastInteractor] Hit: {hit.collider.name} at distance {hit.distance:F2}m");
+                }
+                
                 var interactable = ResolveInteractable(hit.collider);
+                
+                if (enableDebugLog)
+                {
+                    if (interactable != null)
+                    {
+                        Debug.Log($"[FPRaycastInteractor] Found interactable: {interactable.GetType().Name} on {hit.collider.name}");
+                    }
+                    else
+                    {
+                        Debug.Log($"[FPRaycastInteractor] No interactable found on {hit.collider.name}");
+                    }
+                }
+                
                 UpdateHoverTarget(interactable);
 
-                if (interactable != null && Input.GetMouseButtonDown(0))
+                // Check for click - only process if not clicking on UI
+                if (interactable != null)
                 {
-                    interactable.OnRaycastClick(this);
+                    if (Input.GetMouseButtonDown(0))
+                    {
+                        // Check if mouse is over UI element
+                        bool isOverUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+                        
+                        if (enableDebugLog)
+                        {
+                            Debug.Log($"[FPRaycastInteractor] Mouse button down detected. IsOverUI: {isOverUI}, Interactable: {interactable.GetType().Name}");
+                        }
+                        
+                        if (!isOverUI)
+                        {
+                            if (enableDebugLog)
+                            {
+                                Debug.Log($"[FPRaycastInteractor] Click detected, calling OnRaycastClick on {interactable.GetType().Name}");
+                            }
+                            interactable.OnRaycastClick(this);
+                        }
+                        else
+                        {
+                            if (enableDebugLog)
+                            {
+                                Debug.Log("[FPRaycastInteractor] Click blocked by UI element");
+                            }
+                        }
+                    }
                 }
             }
             else
             {
+                if (enableDebugLog && Time.frameCount % 60 == 0)
+                {
+                    Debug.Log("[FPRaycastInteractor] No raycast hit");
+                }
                 UpdateHoverTarget(null);
             }
         }
