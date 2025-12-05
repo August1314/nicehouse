@@ -46,6 +46,81 @@ namespace NiceHouse.ControlHub
             {
                 _button.onClick.AddListener(HandleButtonClicked);
             }
+
+            // 自动查找 Text 组件（如果 Inspector 中没有指定）
+            AutoFindTextComponents();
+        }
+
+        private void AutoFindTextComponents()
+        {
+            // 自动查找 titleText
+            if (titleText == null)
+            {
+                titleText = GetComponentInChildren<TMP_Text>();
+                // 如果找到多个，尝试查找包含 "Title" 或 "Name" 的
+                if (titleText == null)
+                {
+                    var allTexts = GetComponentsInChildren<TMP_Text>();
+                    foreach (var text in allTexts)
+                    {
+                        if (text.name.Contains("Title") || text.name.Contains("Name") || 
+                            text.name.Contains("title") || text.name.Contains("name"))
+                        {
+                            titleText = text;
+                            break;
+                        }
+                    }
+                    // 如果还是没找到，使用第一个
+                    if (titleText == null && allTexts.Length > 0)
+                    {
+                        titleText = allTexts[0];
+                    }
+                }
+            }
+
+            // 自动查找 valueText（第二个 Text 组件）
+            if (valueText == null)
+            {
+                var allTexts = GetComponentsInChildren<TMP_Text>();
+                int foundCount = 0;
+                foreach (var text in allTexts)
+                {
+                    if (text == titleText) continue;
+                    if (text.name.Contains("Value") || text.name.Contains("value") ||
+                        text.name.Contains("Status") || text.name.Contains("status"))
+                    {
+                        valueText = text;
+                        break;
+                    }
+                    if (foundCount == 0)
+                    {
+                        valueText = text;
+                    }
+                    foundCount++;
+                }
+            }
+
+            // 自动查找 hintText（第三个 Text 组件）
+            if (hintText == null)
+            {
+                var allTexts = GetComponentsInChildren<TMP_Text>();
+                int foundCount = 0;
+                foreach (var text in allTexts)
+                {
+                    if (text == titleText || text == valueText) continue;
+                    if (text.name.Contains("Hint") || text.name.Contains("hint") ||
+                        text.name.Contains("Subtitle") || text.name.Contains("subtitle"))
+                    {
+                        hintText = text;
+                        break;
+                    }
+                    if (foundCount == 0)
+                    {
+                        hintText = text;
+                    }
+                    foundCount++;
+                }
+            }
         }
 
         private void Update()
@@ -120,7 +195,6 @@ namespace NiceHouse.ControlHub
                 return;
             }
 
-            Debug.Log($"[ControlHubEntryWidget] Button clicked, opening module '{_module.ModuleId}'.", this);
             _onSelected.Invoke(_module.ModuleId);
         }
 
