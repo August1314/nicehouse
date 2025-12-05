@@ -116,6 +116,56 @@ namespace NiceHouse.Data
         {
             return _deviceEnergy.TryGetValue(deviceId, out var data) ? data.dailyConsumption : 0f;
         }
+
+        /// <summary>
+        /// 获取某设备当前功率（W）。
+        /// </summary>
+        public float GetDeviceCurrentPower(string deviceId)
+        {
+            return _deviceEnergy.TryGetValue(deviceId, out var data) ? data.currentPower : 0f;
+        }
+
+        /// <summary>
+        /// 获取某设备的能源数据。
+        /// </summary>
+        public EnergyData GetDeviceEnergyData(string deviceId)
+        {
+            return _deviceEnergy.TryGetValue(deviceId, out var data) ? data : null;
+        }
+
+        /// <summary>
+        /// 获取所有设备的能源数据（只读字典）。
+        /// </summary>
+        public IReadOnlyDictionary<string, EnergyData> GetAllDevicesEnergyData()
+        {
+            return _deviceEnergy;
+        }
+
+        /// <summary>
+        /// 获取总累计用电量（kWh）。
+        /// </summary>
+        public float GetTotalDailyConsumption()
+        {
+            float total = 0f;
+            foreach (var data in _deviceEnergy.Values)
+            {
+                total += data.dailyConsumption;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// 获取总当前功率（W）。
+        /// </summary>
+        public float GetTotalCurrentPower()
+        {
+            float total = 0f;
+            foreach (var data in _deviceEnergy.Values)
+            {
+                total += data.currentPower;
+            }
+            return total;
+        }
     }
 }
 

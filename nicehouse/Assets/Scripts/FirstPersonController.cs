@@ -187,8 +187,8 @@ public class FirstPersonController : MonoBehaviour
             transform.Rotate(Vector3.up * mouseX, Space.World);
 
             // 旋转相机（垂直视角）
-            _cameraPitch = Mathf.Clamp(_cameraPitch - mouseY, -pitchLimit, pitchLimit);
-            cameraPivot.localEulerAngles = new Vector3(_cameraPitch, 0f, 0f);
+        _cameraPitch = Mathf.Clamp(_cameraPitch - mouseY, -pitchLimit, pitchLimit);
+        cameraPivot.localEulerAngles = new Vector3(_cameraPitch, 0f, 0f);
         }
     }
 

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using NiceHouse.EnvironmentControl;
 
 namespace NiceHouse.Data
 {
@@ -35,6 +36,12 @@ namespace NiceHouse.Data
             {
                 if (string.IsNullOrEmpty(device.deviceId))
                 {
+                    // 检查是否是某个设备的子对象（如 AC 的叶片），如果是则静默跳过
+                    if (IsChildOfDevice(device.transform))
+                    {
+                        continue; // 静默跳过，不显示警告
+                    }
+                    
                     Debug.LogWarning($"DeviceDefinition on {device.name} has empty deviceId.");
                     continue;
                 }
@@ -83,6 +90,33 @@ namespace NiceHouse.Data
         /// </summary>
         /// <returns>设备ID到设备定义的映射</returns>
         public IReadOnlyDictionary<string, DeviceDefinition> GetAllDevices() => _devicesById;
+        
+        /// <summary>
+        /// 检查 Transform 是否是某个设备的子对象（如 AC 的叶片）
+        /// </summary>
+        private bool IsChildOfDevice(Transform transform)
+        {
+            Transform parent = transform.parent;
+            while (parent != null)
+            {
+                // 检查父对象是否有 BaseDeviceController（表示这是一个设备的子对象）
+                if (parent.GetComponent<BaseDeviceController>() != null)
+                {
+                    return true;
+                }
+                
+                // 检查父对象是否有 DeviceDefinition 且 deviceId 不为空（表示这是一个设备）
+                var deviceDef = parent.GetComponent<DeviceDefinition>();
+                if (deviceDef != null && !string.IsNullOrEmpty(deviceDef.deviceId))
+                {
+                    return true;
+                }
+                
+                parent = parent.parent;
+            }
+            
+            return false;
+        }
     }
 }
 

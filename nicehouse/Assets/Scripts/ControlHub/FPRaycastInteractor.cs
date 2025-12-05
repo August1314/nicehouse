@@ -58,7 +58,7 @@ namespace NiceHouse.ControlHub
                 UpdateHoverTarget(null);
                 return;
             }
-            
+
             // If cursor is locked, use camera forward (FPS style)
             // If cursor is not locked, use mouse position (UI button style)
             if (isCursorLocked)
@@ -104,7 +104,7 @@ namespace NiceHouse.ControlHub
                 if (interactable != null)
                 {
                     if (Input.GetMouseButtonDown(0))
-                    {
+                {
                         // Check if mouse is over UI element
                         bool isOverUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
                         
@@ -119,7 +119,7 @@ namespace NiceHouse.ControlHub
                             {
                                 Debug.Log($"[FPRaycastInteractor] Click detected, calling OnRaycastClick on {interactable.GetType().Name}");
                             }
-                            interactable.OnRaycastClick(this);
+                    interactable.OnRaycastClick(this);
                         }
                         else
                         {

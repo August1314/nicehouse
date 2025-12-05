@@ -6,6 +6,7 @@ namespace NiceHouse.Data
     /// <summary>
     /// 简单的环境数据模拟器，用于演示温度 / 湿度 / PM2.5 的动态变化。
     /// 可在 Inspector 中配置不同房间的基础值与波动范围。
+    /// 可以通过开关选择性地启用/禁用特定数据的模拟。
     /// </summary>
     public class EnvironmentDataSimulator : MonoBehaviour
     {
@@ -21,10 +22,21 @@ namespace NiceHouse.Data
             public float pm25Amplitude = 20f;
         }
 
-        [Tooltip("数据更新间隔（秒）")]
+        [Header("Simulation Controls")]
+        [Tooltip("Enable temperature simulation (Note: conflicts with TemperatureInfluenceSystem if both are enabled)")]
+        public bool simulateTemperature = false;
+        
+        [Tooltip("Enable humidity simulation")]
+        public bool simulateHumidity = true;
+        
+        [Tooltip("Enable PM2.5 simulation")]
+        public bool simulatePm25 = true;
+
+        [Header("Simulation Settings")]
+        [Tooltip("Data update interval (seconds)")]
         public float updateInterval = 1f;
 
-        [Tooltip("每个房间的环境配置")]
+        [Tooltip("Environment configuration for each room")]
         public List<RoomEnvironmentConfig> roomConfigs = new List<RoomEnvironmentConfig>();
 
         private float _timer;
@@ -125,15 +137,30 @@ namespace NiceHouse.Data
                 var data = EnvironmentDataStore.Instance.GetOrCreateRoomData(cfg.roomId);
 
                 var t = Time.time;
-                data.temperature = cfg.baseTemperature +
-                                    Mathf.Sin(t * 0.1f) * cfg.temperatureAmplitude;
-                data.humidity = cfg.baseHumidity +
-                                 Mathf.Sin(t * 0.07f) * cfg.humidityAmplitude;
-                data.pm25 = Mathf.Max(0f,
-                    cfg.basePm25 + Mathf.Sin(t * 0.09f) * cfg.pm25Amplitude);
+                
+                // Update temperature if enabled
+                if (simulateTemperature)
+                {
+                    data.temperature = cfg.baseTemperature +
+                                        Mathf.Sin(t * 0.1f) * cfg.temperatureAmplitude;
+                }
+                
+                // Update humidity if enabled
+                if (simulateHumidity)
+                {
+                    data.humidity = cfg.baseHumidity +
+                                     Mathf.Sin(t * 0.07f) * cfg.humidityAmplitude;
+                }
+                
+                // Update PM2.5 if enabled
+                if (simulatePm25)
+                {
+                    data.pm25 = Mathf.Max(0f,
+                        cfg.basePm25 + Mathf.Sin(t * 0.09f) * cfg.pm25Amplitude);
 
-                // PM10 可以简化为 PM2.5 的某个比例或偏移
-                data.pm10 = data.pm25 * 1.2f;
+                    // PM10 can be simplified as a ratio or offset of PM2.5
+                    data.pm10 = data.pm25 * 1.2f;
+                }
             }
         }
     }
