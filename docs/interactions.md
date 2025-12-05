@@ -69,6 +69,18 @@
   - 交互目的：
     - 当环境污染严重时，传感器模型变红或材质 Emission 闪烁示警。
 
+- **灯光（Light）** ✅ 已实现
+  - 分割要求：
+    - 灯具模型作为独立 GameObject
+    - 创建子物体 `Light_source` 放置在灯泡位置，挂载 Light 组件
+  - 交互目的：
+    - 玩家通过准星瞄准灯具，点击鼠标左键开关灯
+    - 开关灯时自动记录能耗数据
+  - 所需组件：
+    - 父物体：`DeviceDefinition` + `LightController` + `BoxCollider` + `InteractableLight`
+    - 子物体：`Light`（Point 类型）
+  - 相关文档：[灯光交互功能文档](./feature-light-interaction.md)
+
 ---
 
 ### 2. 能耗智控模块

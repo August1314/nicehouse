@@ -13,7 +13,8 @@ BaseDeviceController (基类)
 ├── AirConditionerController (空调)
 ├── FanController (风扇)
 ├── AirPurifierController (空气净化器)
-└── FreshAirController (新风系统)
+├── FreshAirController (新风系统)
+└── LightController (灯光) ← 新增
 ```
 
 ### 控制器列表
@@ -25,6 +26,7 @@ BaseDeviceController (基类)
 | `FanController` | 风扇控制 | 扇叶旋转动画 |
 | `AirPurifierController` | 空气净化器控制 | 扇叶旋转动画 |
 | `FreshAirController` | 新风系统控制 | 状态指示器 |
+| `LightController` | 灯光控制 | 亮度调节、发光材质支持 |
 
 ---
 
@@ -217,6 +219,47 @@ controller.IsOn;
 controller.TurnOn();
 controller.TurnOff();
 controller.IsOn;
+```
+
+### LightController（灯光）
+
+```csharp
+// 基础接口（继承自 BaseDeviceController）
+controller.TurnOn();   // 开灯
+controller.TurnOff();  // 关灯
+controller.IsOn;
+
+// 灯光特有接口
+controller.Toggle();                    // 切换开关状态
+controller.SetIntensity(float value);   // 设置灯光强度
+controller.IsLightOn;                   // 获取当前灯光状态
+```
+
+**Inspector 配置：**
+```
+Light Controller
+├── 灯光组件
+│   ├── Target Light: 指向子物体的 Light 组件
+│   ├── On Intensity: 开灯亮度（推荐 5-10）
+│   └── Off Intensity: 关灯亮度（通常为 0）
+├── 发光材质（可选）
+│   ├── Emissive Renderer: 灯罩的 Renderer
+│   └── Emission On/Off Color: 发光颜色
+└── 状态
+    └── Is Light On: 当前状态（只读）
+```
+
+**使用示例：**
+```csharp
+// 通过 DeviceManager 控制灯光
+if (DeviceManager.Instance.TryGetDevice("Light_Bedroom_01", out var device))
+{
+    var light = device.GetComponent<LightController>();
+    light?.Toggle();  // 切换开关
+}
+
+// 配合 InteractableLight 实现射线交互
+// InteractableLight 会自动调用 LightController.Toggle()
 ```
 
 ---
