@@ -325,6 +325,9 @@ namespace NiceHouse.EnvironmentControl
                         case NiceHouse.Data.DeviceType.FreshAirSystem:
                             controller = device.GetComponent<FreshAirController>();
                             break;
+                        case NiceHouse.Data.DeviceType.Light:
+                            controller = device.GetComponent<LightController>();
+                            break;
                     }
 
                     if (controller != null)
@@ -339,6 +342,40 @@ namespace NiceHouse.EnvironmentControl
                         }
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// 通过设备ID直接控制设备（支持所有设备类型）
+        /// </summary>
+        public void ManualControlDeviceById(string deviceId, bool turnOn)
+        {
+            if (DeviceManager.Instance == null)
+            {
+                return;
+            }
+
+            if (!DeviceManager.Instance.TryGetDevice(deviceId, out var device))
+            {
+                Debug.LogWarning($"[EnvironmentController] Device not found: {deviceId}");
+                return;
+            }
+
+            var controller = device.GetComponent<BaseDeviceController>();
+            if (controller != null)
+            {
+                if (turnOn)
+                {
+                    controller.TurnOn();
+                }
+                else
+                {
+                    controller.TurnOff();
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"[EnvironmentController] Device {deviceId} does not have a BaseDeviceController");
             }
         }
     }

@@ -58,7 +58,8 @@ namespace NiceHouse.UI
         private void Start()
         {
             // 根据设置控制显示/隐藏
-            gameObject.SetActive(showInRuntime);
+            // 注意：在 Control Hub 模式下，这个设置会被适配器覆盖，所以这里不自动激活
+            // gameObject.SetActive(showInRuntime);
         }
 
         private void Update()
