@@ -33,6 +33,10 @@ public class ThirdPersonController : MonoBehaviour
     private int _animIDGrounded;
     private int _animIDJump;
     private int _animIDTurn;
+    private bool _hasAnimSpeed;
+    private bool _hasAnimGrounded;
+    private bool _hasAnimJump;
+    private bool _hasAnimTurn;
 
     private void Awake()
     {
@@ -43,6 +47,7 @@ public class ThirdPersonController : MonoBehaviour
         }
 
         AssignAnimationIDs();
+        CacheAnimatorParameters();
     }
 
     private void AssignAnimationIDs()
@@ -51,6 +56,25 @@ public class ThirdPersonController : MonoBehaviour
         _animIDGrounded = Animator.StringToHash("Grounded");
         _animIDJump = Animator.StringToHash("Jump");
         _animIDTurn = Animator.StringToHash("Turn");
+    }
+
+    private void CacheAnimatorParameters()
+    {
+        if (animator == null) return;
+        foreach (var param in animator.parameters)
+        {
+            switch (param.nameHash)
+            {
+                case var h when h == _animIDSpeed:
+                    _hasAnimSpeed = true; break;
+                case var h when h == _animIDGrounded:
+                    _hasAnimGrounded = true; break;
+                case var h when h == _animIDJump:
+                    _hasAnimJump = true; break;
+                case var h when h == _animIDTurn:
+                    _hasAnimTurn = true; break;
+            }
+        }
     }
 
     private void Update()
@@ -72,13 +96,13 @@ public class ThirdPersonController : MonoBehaviour
         if (_isGrounded && Input.GetButtonDown("Jump"))
         {
             _velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            if (animator) animator.SetTrigger(_animIDJump);
+            if (animator && _hasAnimJump) animator.SetTrigger(_animIDJump);
         }
 
         _velocity.y += gravity * Time.deltaTime;
         _controller.Move(_velocity * Time.deltaTime);
         
-        if (animator) animator.SetBool(_animIDGrounded, _isGrounded);
+        if (animator && _hasAnimGrounded) animator.SetBool(_animIDGrounded, _isGrounded);
     }
 
     private void HandleMovement()
@@ -126,9 +150,15 @@ public class ThirdPersonController : MonoBehaviour
         // 更新动画
         if (animator)
         {
-            animator.SetFloat(_animIDSpeed, targetSpeed, 0.05f, Time.deltaTime);
+            if (_hasAnimSpeed)
+            {
+                animator.SetFloat(_animIDSpeed, targetSpeed, 0.05f, Time.deltaTime);
+            }
             // 设置转身参数（A=-1, D=1, 不按=0）
-            animator.SetFloat(_animIDTurn, h, 0.1f, Time.deltaTime);
+            if (_hasAnimTurn)
+            {
+                animator.SetFloat(_animIDTurn, h, 0.1f, Time.deltaTime);
+            }
         }
     }
 }

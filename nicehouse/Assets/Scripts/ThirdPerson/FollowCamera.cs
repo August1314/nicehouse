@@ -36,6 +36,16 @@ public class FollowCamera : MonoBehaviour
     public float minDistance = 2.0f;
     public float maxDistance = 8.0f;
 
+    [Header("鼠标旋转")]
+    [Tooltip("是否允许鼠标控制相机绕目标旋转")]
+    public bool enableMouseRotation = true;
+    [Tooltip("是否需要按住右键才旋转")]
+    public bool requireRightMouse = true;
+    public float mouseSensitivity = 120f;
+    [Tooltip("俯仰角限制（度）")]
+    public float minPitch = -30f;
+    public float maxPitch = 60f;
+
     [Header("碰撞检测")]
     [Tooltip("是否启用碰撞检测")]
     public bool enableCollision = true;
@@ -51,28 +61,38 @@ public class FollowCamera : MonoBehaviour
 
     private Vector3 _velocity = Vector3.zero;
     private float _currentDistance;
+    private float _yawOffset;
+    private float _pitch = 10f;
 
     private void Start()
     {
         _currentDistance = distance;
+        if (target != null)
+        {
+            _yawOffset = 0f;
+        }
     }
 
     private void LateUpdate()
     {
         if (target == null) return;
 
+        HandleMouseInput();
+
         // 滚轮缩放
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         distance -= scroll * zoomSpeed;
         distance = Mathf.Clamp(distance, minDistance, maxDistance);
+
+        float yaw = target.eulerAngles.y + _yawOffset;
 
         // 计算目标位置的起点（角色头部位置）
         Vector3 targetHead = target.position + Vector3.up * lookAtHeight;
         
         // 计算理想的相机位置（无遮挡情况下）
         Vector3 idealPosition = target.position
-            - target.forward * distance
-            + target.right * horizontalOffset
+            + Quaternion.Euler(_pitch, yaw, 0f) * Vector3.back * distance
+            + Quaternion.Euler(0f, yaw, 0f) * Vector3.right * horizontalOffset
             + Vector3.up * height;
 
         // 碰撞检测
@@ -98,8 +118,8 @@ public class FollowCamera : MonoBehaviour
 
         // 使用当前距离计算实际相机位置
         Vector3 targetPosition = target.position
-            - target.forward * _currentDistance
-            + target.right * horizontalOffset
+            + Quaternion.Euler(_pitch, yaw, 0f) * Vector3.back * _currentDistance
+            + Quaternion.Euler(0f, yaw, 0f) * Vector3.right * horizontalOffset
             + Vector3.up * height;
 
         // 平滑移动到目标位置
@@ -120,6 +140,19 @@ public class FollowCamera : MonoBehaviour
             targetRotation, 
             1f / rotationSmoothTime * Time.deltaTime
         );
+    }
+
+    private void HandleMouseInput()
+    {
+        if (!enableMouseRotation) return;
+        if (requireRightMouse && !Input.GetMouseButton(1)) return;
+
+        float mouseX = Input.GetAxis("Mouse X");
+        float mouseY = Input.GetAxis("Mouse Y");
+
+        _yawOffset += mouseX * mouseSensitivity * Time.deltaTime;
+        _pitch -= mouseY * mouseSensitivity * Time.deltaTime;
+        _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
     }
 
     // 在 Scene 视图中显示调试信息

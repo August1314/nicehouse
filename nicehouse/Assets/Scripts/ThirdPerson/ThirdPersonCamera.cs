@@ -24,6 +24,16 @@ public class ThirdPersonCamera : MonoBehaviour
     public float minVerticalAngle = -20f;
     public float maxVerticalAngle = 60f;
 
+    [Header("防穿墙（阻挡处理）")]
+    [Tooltip("启用相机碰撞检测，防止镜头穿墙或被遮挡")]
+    public bool enableCollision = true;
+    [Tooltip("用于碰撞检测的球体半径")]
+    public float collisionRadius = 0.2f;
+    [Tooltip("碰撞时与命中点保持的偏移距离")]
+    public float collisionOffset = 0.2f;
+    [Tooltip("检测层，默认检测全部")]
+    public LayerMask collisionLayers = ~0;
+
     private float _currentX = 0.0f;
     private float _currentY = 0.0f;
 
@@ -65,7 +75,11 @@ public class ThirdPersonCamera : MonoBehaviour
 
         Quaternion rotation = Quaternion.Euler(_currentY, _currentX, 0);
         Vector3 direction = new Vector3(0, 0, -distance);
-        Vector3 position = target.position + new Vector3(0, height, 0) + rotation * direction;
+        Vector3 pivot = target.position + new Vector3(0, height, 0);
+        Vector3 desiredPosition = pivot + rotation * direction;
+
+        float adjustedDistance = ResolveCollision(pivot, desiredPosition);
+        Vector3 position = pivot + rotation * new Vector3(0, 0, -adjustedDistance);
 
         transform.rotation = rotation;
         transform.position = position;
@@ -80,5 +94,25 @@ public class ThirdPersonCamera : MonoBehaviour
             _currentY -= Input.GetAxis("Mouse Y") * rotationSpeed;
             _currentY = Mathf.Clamp(_currentY, minVerticalAngle, maxVerticalAngle);
         }
+    }
+
+    // 防穿墙：检测 pivot 到理想相机位置之间是否有障碍物，若有则将距离缩短到命中点前
+    private float ResolveCollision(Vector3 pivot, Vector3 desiredPosition)
+    {
+        if (!enableCollision) return distance;
+
+        Vector3 dir = desiredPosition - pivot;
+        float targetDist = dir.magnitude;
+        if (targetDist <= 0.001f) return targetDist;
+
+        dir.Normalize();
+
+        if (Physics.SphereCast(pivot, collisionRadius, dir, out RaycastHit hit, targetDist, collisionLayers, QueryTriggerInteraction.Ignore))
+        {
+            float safeDist = Mathf.Max(hit.distance - collisionOffset, minDistance);
+            return safeDist;
+        }
+
+        return targetDist;
     }
 }
