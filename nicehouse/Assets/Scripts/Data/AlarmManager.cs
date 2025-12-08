@@ -48,6 +48,10 @@ namespace NiceHouse.Data
         [Tooltip("最大保存告警记录数")]
         public int maxRecords = 100;
 
+        [Header("生命周期")]
+        [Tooltip("场景切换时保持不销毁")]
+        public bool dontDestroyOnLoad = true;
+
         [Tooltip("告警事件，参数：告警记录")]
         public System.Action<AlarmRecord> OnAlarmAdded;
 
@@ -62,6 +66,10 @@ namespace NiceHouse.Data
             }
 
             Instance = this;
+            if (dontDestroyOnLoad && transform.parent == null)
+            {
+                DontDestroyOnLoad(gameObject);
+            }
             // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
         }
 
