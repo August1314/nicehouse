@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using NiceHouse.Data;
@@ -10,6 +11,16 @@ namespace NiceHouse.UI
     /// </summary>
     public class DataDashboard : MonoBehaviour
     {
+        [Header("房间选择器")]
+        [Tooltip("房间下拉列表（可选），用于切换房间显示")]
+        public TMP_Dropdown roomDropdown;
+
+        [Tooltip("启动时自动从 RoomManager 填充房间列表")]
+        public bool autoPopulateRooms = true;
+
+        [Tooltip("找不到房间时使用的默认房间ID")]
+        public string defaultRoomId = "LivingRoom01";
+
         [Header("房间选择")]
         [Tooltip("当前显示的房间ID")]
         public string currentRoomId = "LivingRoom01";
@@ -57,6 +68,7 @@ namespace NiceHouse.UI
 
         private void Start()
         {
+            InitRoomDropdown();
             // 根据设置控制显示/隐藏
             // 注意：在 Control Hub 模式下，这个设置会被适配器覆盖，所以这里不自动激活
             // gameObject.SetActive(showInRuntime);
@@ -80,6 +92,57 @@ namespace NiceHouse.UI
             UpdateActivityTracking();
             UpdateSafetyData();
             UpdateAlarmList();
+        }
+
+        /// <summary>
+        /// 初始化房间下拉选择。
+        /// </summary>
+        private void InitRoomDropdown()
+        {
+            if (roomDropdown == null || !autoPopulateRooms)
+            {
+                // 未配置下拉或不自动填充，仍保留现有 currentRoomId
+                return;
+            }
+
+            List<string> roomIds = new List<string>();
+            if (RoomManager.Instance != null)
+            {
+                roomIds = RoomManager.Instance.GetAllRooms().Values
+                    .Select(r => r.roomId)
+                    .OrderBy(id => id)
+                    .ToList();
+            }
+
+            if (roomIds.Count == 0)
+            {
+                // 没有房间数据时使用默认值
+                roomIds.Add(defaultRoomId);
+            }
+
+            roomDropdown.options = roomIds.Select(id => new TMP_Dropdown.OptionData(id)).ToList();
+
+            // 找到当前房间在列表中的索引，否则回退第一个
+            int index = roomIds.IndexOf(currentRoomId);
+            if (index < 0) index = 0;
+            currentRoomId = roomIds[index];
+            roomDropdown.SetValueWithoutNotify(index);
+
+            roomDropdown.onValueChanged.AddListener(OnRoomDropdownChanged);
+        }
+
+        /// <summary>
+        /// 下拉变更事件。
+        /// </summary>
+        private void OnRoomDropdownChanged(int index)
+        {
+            if (roomDropdown == null || roomDropdown.options == null || index < 0 || index >= roomDropdown.options.Count)
+            {
+                return;
+            }
+
+            currentRoomId = roomDropdown.options[index].text;
+            UpdateAllData();
         }
 
         private void UpdateEnvironmentData()
@@ -216,14 +279,17 @@ namespace NiceHouse.UI
             if (SafetyDataStore.Instance != null &&
                 SafetyDataStore.Instance.TryGetRoomSafety(currentRoomId, out var safety))
             {
+                float smokeThreshold = GetSmokeThreshold();
+                float gasThreshold = GetGasThreshold();
+
                 if (smokeLevelText != null)
                 {
-                    string smokeColor = safety.smokeLevel > 50f ? "#FF4444" : "#88FF88";
+                    string smokeColor = GetSafetyColor(safety.smokeLevel, smokeThreshold);
                     smokeLevelText.text = $"<color=#CCCCCC>Smoke:</color> <color={smokeColor}><b>{safety.smokeLevel:F1}</b></color>";
                 }
                 if (gasLevelText != null)
                 {
-                    string gasColor = safety.gasLevel > 30f ? "#FF4444" : "#88FF88";
+                    string gasColor = GetSafetyColor(safety.gasLevel, gasThreshold);
                     gasLevelText.text = $"<color=#CCCCCC>Gas:</color> <color={gasColor}><b>{safety.gasLevel:F1}</b></color>";
                 }
             }
@@ -232,6 +298,38 @@ namespace NiceHouse.UI
                 if (smokeLevelText != null) smokeLevelText.text = "<color=#CCCCCC>Smoke:</color> <color=#888888>--</color>";
                 if (gasLevelText != null) gasLevelText.text = "<color=#CCCCCC>Gas:</color> <color=#888888>--</color>";
             }
+        }
+
+        /// <summary>
+        /// 获取烟雾阈值（无配置时使用默认70）。
+        /// </summary>
+        private float GetSmokeThreshold()
+        {
+            if (SafetyDataStore.Instance != null && SafetyDataStore.Instance.thresholds != null)
+            {
+                return SafetyDataStore.Instance.thresholds.GetSmokeThreshold();
+            }
+            return 70f;
+        }
+
+        /// <summary>
+        /// 获取燃气阈值（无配置时使用默认40）。
+        /// </summary>
+        private float GetGasThreshold()
+        {
+            if (SafetyDataStore.Instance != null && SafetyDataStore.Instance.thresholds != null)
+            {
+                return SafetyDataStore.Instance.thresholds.GetGasThreshold();
+            }
+            return 40f;
+        }
+
+        /// <summary>
+        /// 根据阈值获取安全显示颜色。
+        /// </summary>
+        private string GetSafetyColor(float value, float threshold)
+        {
+            return value >= threshold ? "#FF4444" : "#88FF88";
         }
 
         private void UpdateAlarmList()

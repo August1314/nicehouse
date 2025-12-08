@@ -131,13 +131,15 @@ namespace NiceHouse.SmartMonitoring
         /// </summary>
         private AudioClip GetAlarmSound(AlarmType type)
         {
-            // 跌倒、坠床等紧急情况使用紧急音效
-            if (type == AlarmType.Fall)
+            switch (type)
             {
-                return emergencyAlarmSound != null ? emergencyAlarmSound : normalAlarmSound;
+                case AlarmType.Fall:
+                case AlarmType.Smoke:
+                case AlarmType.GasLeak:
+                    return emergencyAlarmSound != null ? emergencyAlarmSound : normalAlarmSound;
+                default:
+                    return normalAlarmSound;
             }
-
-            return normalAlarmSound;
         }
 
         /// <summary>
@@ -218,7 +220,19 @@ namespace NiceHouse.SmartMonitoring
             }
 
             // 确定闪烁颜色（紧急告警用红色，普通告警用黄色）
-            Color flashColor = (type == AlarmType.Fall) ? Color.red : Color.yellow;
+            Color flashColor = Color.yellow;
+            if (type == AlarmType.Fall)
+            {
+                flashColor = Color.red;
+            }
+            else if (type == AlarmType.Smoke)
+            {
+                flashColor = new Color(0.9f, 0.3f, 0.2f); // 烟雾偏红
+            }
+            else if (type == AlarmType.GasLeak)
+            {
+                flashColor = new Color(1f, 0.7f, 0.2f); // 燃气偏橙
+            }
 
             float elapsed = 0f;
             bool isOn = true;
