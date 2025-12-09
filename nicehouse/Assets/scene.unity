@@ -13023,7 +13023,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bedf72717251e4de3b076474eec3aea0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  deviceId: SmokeSensor01
+  deviceId: SmokeSensor02
   type: 6
   roomId: BedRoom01
 --- !u!1 &622713425
@@ -18341,6 +18341,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   doorController: {fileID: 837124669}
+  openAngleOffset: 90
   interactionDistance: 0
   closeHint: "\u5173\u95E8"
   openHint: "\u5F00\u95E8"
@@ -27942,6 +27943,9 @@ GameObject:
   - component: {fileID: 1460868060}
   - component: {fileID: 1460868062}
   - component: {fileID: 1460868061}
+  - component: {fileID: 1460868065}
+  - component: {fileID: 1460868064}
+  - component: {fileID: 1460868063}
   m_Layer: 0
   m_Name: EnteranceDoor
   m_TagString: Untagged
@@ -27957,13 +27961,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1460868059}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.00000013767877, y: 0.7071068, z: 0.70710677, w: 0.00000013767878}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0.7071068, w: 0}
   m_LocalPosition: {x: -14.45178, y: 2.463099, z: 5.172103}
   m_LocalScale: {x: 96.38303, y: 66.86402, z: 96.09334}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1181716805}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 180}
 --- !u!23 &1460868061
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -28016,6 +28020,61 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1460868059}
   m_Mesh: {fileID: 5371869049568176299, guid: 64a7eac0e2bc148d0bb6a8cfbe3b86ee, type: 3}
+--- !u!114 &1460868063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1460868059}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a129385b1128a9f44941d72505bf9f7f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  openAngle: 90
+  closeAngle: 0
+  rotationSpeed: 1
+--- !u!114 &1460868064
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1460868059}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29ae82f01ec028e4488439d72e14a5ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  doorController: {fileID: 1460868063}
+  openAngleOffset: 90
+  interactionDistance: 0
+  closeHint: "\u5173\u95E8"
+  openHint: "\u5F00\u95E8"
+  highlightColor: {r: 0.8207547, g: 0.8207547, b: 0.4761926, a: 1}
+  enableHighlight: 1
+--- !u!65 &1460868065
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1460868059}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.013675287, y: 0.002051448, z: 0.030085633}
+  m_Center: {x: 0.0067008967, y: -0.00058810326, z: -0.008888937}
 --- !u!1 &1470156209 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -3128920332608425032, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}

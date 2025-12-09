@@ -1,6 +1,6 @@
 using UnityEngine;
-using NiceHouse.EnvironmentControl;
 using NiceHouse.ControlHub;
+using NiceHouse.Interaction;
 
 namespace NiceHouse.Interaction
 {
@@ -10,6 +10,10 @@ namespace NiceHouse.Interaction
         [Header("门控制器")]
         [Tooltip("要控制的门控制器（如不指定则自动查找）")]
         public DoorController doorController;
+
+        [Header("无控制器时的开门角度")]
+        [Tooltip("未挂 DoorController 时，开门相对当前初始角度的偏移")]
+        public float openAngleOffset = 90f;
 
         [Header("交互设置")]
         [Tooltip("交互距离限制（0表示无限制）")]
@@ -32,6 +36,8 @@ namespace NiceHouse.Interaction
         private Material _originalMaterial;
         private Color _originalColor;
         private bool _isHighlighted;
+        private Vector3 _initialLocalEuler;
+        private bool _isOpen;
 
         private void Awake()
         {
@@ -44,6 +50,9 @@ namespace NiceHouse.Interaction
                     doorController = GetComponentInParent<DoorController>();
                 }
             }
+
+            _initialLocalEuler = transform.localEulerAngles;
+            _isOpen = false;
 
             // 确保有Collider
             var collider = GetComponent<Collider>();
@@ -136,17 +145,25 @@ namespace NiceHouse.Interaction
 
         public void ToggleDoor()
         {
-            // 简化开门逻辑，直接旋转门
-            var rotation = transform.rotation;
-            var targetAngle = rotation.eulerAngles.y == 0 ? 90 : 0; // 开门旋转到90度，关门回到0度
-            transform.rotation = Quaternion.Euler(rotation.eulerAngles.x, targetAngle, rotation.eulerAngles.z);
+            // 优先使用 DoorController（带插值动画且保证局部旋转）
+            if (doorController != null)
+            {
+                doorController.Toggle();
+                _isOpen = doorController.IsDoorOpen;
+                return;
+            }
+
+            // 无控制器时，直接在局部 Y 轴上以初始角度为基准旋转，不改动 X/Z
+            _isOpen = !_isOpen;
+            float targetY = _initialLocalEuler.y + (_isOpen ? openAngleOffset : 0f);
+            transform.localRotation = Quaternion.Euler(_initialLocalEuler.x, targetY, _initialLocalEuler.z);
         }
 
         public float CurrentDoorAngle
         {
             get
             {
-                return transform.rotation.eulerAngles.y;
+                return transform.localRotation.eulerAngles.y;
             }
         }
 
