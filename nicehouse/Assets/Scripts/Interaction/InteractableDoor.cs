@@ -1,5 +1,6 @@
 using UnityEngine;
 using NiceHouse.ControlHub;
+using NiceHouse.Interaction;
 
 namespace NiceHouse.Interaction
 {
@@ -14,8 +15,14 @@ namespace NiceHouse.Interaction
         [Tooltip("要控制的门控制器（如不指定则自动查找）")]
         public DoorController doorController;
 
+<<<<<<< HEAD
         [Tooltip("门开关音效（可选）")]
         public DoorAudio doorAudio;
+=======
+        [Header("无控制器时的开门角度")]
+        [Tooltip("未挂 DoorController 时，开门相对当前初始角度的偏移")]
+        public float openAngleOffset = 90f;
+>>>>>>> 7bf15d3578587ee51c2612dbb750fb368da45a82
 
         [Header("交互设置")]
         [Tooltip("交互距离限制（0 表示无限制）")]
@@ -38,6 +45,8 @@ namespace NiceHouse.Interaction
         private Material _originalMaterial;
         private Color _originalColor;
         private bool _isHighlighted;
+        private Vector3 _initialLocalEuler;
+        private bool _isOpen;
 
         private void Awake()
         {
@@ -51,11 +60,16 @@ namespace NiceHouse.Interaction
                 }
             }
 
+<<<<<<< HEAD
             // 自动查找DoorAudio（新增，可选）
             if (doorAudio == null)
             {
                 doorAudio = GetComponent<DoorAudio>() ?? GetComponentInParent<DoorAudio>();
             }
+=======
+            _initialLocalEuler = transform.localEulerAngles;
+            _isOpen = false;
+>>>>>>> 7bf15d3578587ee51c2612dbb750fb368da45a82
 
             // 确保有Collider
             var collider = GetComponent<Collider>();
@@ -135,19 +149,39 @@ namespace NiceHouse.Interaction
 
         public void ToggleDoor()
         {
+<<<<<<< HEAD
             // 保留原有的简单旋转逻辑（0/90 切换）
             var rotation = transform.rotation;
             var targetAngleIsOpen = rotation.eulerAngles.y == 0f; // 当前0则即将开门
             var targetAngle = targetAngleIsOpen ? 90f : 0f;
             transform.rotation = Quaternion.Euler(rotation.eulerAngles.x, targetAngle, rotation.eulerAngles.z);
+=======
+            // 优先使用 DoorController（带插值动画且保证局部旋转）
+            if (doorController != null)
+            {
+                doorController.Toggle();
+                _isOpen = doorController.IsDoorOpen;
+                return;
+            }
+
+            // 无控制器时，直接在局部 Y 轴上以初始角度为基准旋转，不改动 X/Z
+            _isOpen = !_isOpen;
+            float targetY = _initialLocalEuler.y + (_isOpen ? openAngleOffset : 0f);
+            transform.localRotation = Quaternion.Euler(_initialLocalEuler.x, targetY, _initialLocalEuler.z);
+        }
+>>>>>>> 7bf15d3578587ee51c2612dbb750fb368da45a82
 
             // 播放音效（不影响原逻辑）
             if (doorAudio != null)
             {
+<<<<<<< HEAD
                 if (targetAngleIsOpen)
                     doorAudio.PlayOpen();
                 else
                     doorAudio.PlayClose();
+=======
+                return transform.localRotation.eulerAngles.y;
+>>>>>>> 7bf15d3578587ee51c2612dbb750fb368da45a82
             }
         }
 

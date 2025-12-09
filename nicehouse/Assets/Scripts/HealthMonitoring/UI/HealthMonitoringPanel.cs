@@ -16,6 +16,8 @@ namespace NiceHouse.HealthMonitoring
         public TextMeshProUGUI respirationRateText;
         public TextMeshProUGUI bodyMovementText;
         public TextMeshProUGUI sleepStageText;
+        [Header("数字人选择")]
+        public TMP_Dropdown personDropdown;
 
         [Header("体动强度进度条（可选）")]
         public Image bodyMovementProgressBar;
@@ -28,6 +30,12 @@ namespace NiceHouse.HealthMonitoring
         public float updateInterval = 0.5f;
 
         private float _timer;
+        private string _currentPersonId = null;
+
+        private void Start()
+        {
+            InitializePersonDropdown();
+        }
 
         private void Update()
         {
@@ -43,16 +51,14 @@ namespace NiceHouse.HealthMonitoring
         /// </summary>
         private void UpdateHealthData()
         {
-            if (HealthDataStore.Instance == null) return;
-
-            var health = HealthDataStore.Instance.Current;
+            var health = GetSelectedHealthData();
             if (health == null) return;
 
             UpdateHeartRate(health.heartRate);
             UpdateRespirationRate(health.respirationRate);
             UpdateBodyMovement(health.bodyMovement);
             UpdateSleepStage(health.sleepStage);
-            UpdateHealthStatus();
+            UpdateHealthStatus(health);
         }
 
         /// <summary>
@@ -117,17 +123,10 @@ namespace NiceHouse.HealthMonitoring
         /// <summary>
         /// 更新健康状态总览
         /// </summary>
-        private void UpdateHealthStatus()
+        private void UpdateHealthStatus(VitalSignsData health)
         {
             if (healthStatusText == null) return;
 
-            if (HealthDataStore.Instance == null || HealthDataStore.Instance.Current == null)
-            {
-                healthStatusText.text = "<color=#CCCCCC>Status:</color> <color=#888888>No Data</color>";
-                return;
-            }
-
-            var health = HealthDataStore.Instance.Current;
             bool isHealthy = IsHealthNormal(health);
 
             if (isHealthy)
@@ -154,6 +153,91 @@ namespace NiceHouse.HealthMonitoring
             bool movementOK = health.bodyMovement >= HealthMonitoringController.Instance.bodyMovementMin;
 
             return heartRateOK && respirationOK && movementOK;
+        }
+
+        private VitalSignsData GetSelectedHealthData()
+        {
+            // 多人优先
+            if (HealthDataRegistry.Instance != null)
+            {
+                var pid = EnsureCurrentPersonId();
+                return HealthDataRegistry.Instance.GetOrCreate(pid);
+            }
+
+            // 兼容单人
+            if (HealthDataStore.Instance != null)
+            {
+                return HealthDataStore.Instance.Current;
+            }
+
+            return null;
+        }
+
+        private void InitializePersonDropdown()
+        {
+            if (personDropdown == null) return;
+
+            personDropdown.ClearOptions();
+            var ids = new System.Collections.Generic.List<string>();
+
+            if (PersonStateManager.Instance != null)
+            {
+                foreach (var agent in PersonStateManager.Instance.GetAllAgents())
+                {
+                    if (agent == null) continue;
+                    var pid = string.IsNullOrEmpty(agent.PersonId) ? "Unknown" : agent.PersonId;
+                    if (!ids.Contains(pid))
+                    {
+                        ids.Add(pid);
+                    }
+                }
+            }
+            else if (PersonStateController.Instance != null)
+            {
+                ids.Add(string.IsNullOrEmpty(PersonStateController.Instance.PersonId)
+                    ? "Unknown"
+                    : PersonStateController.Instance.PersonId);
+            }
+
+            if (ids.Count == 0)
+            {
+                ids.Add("Unknown");
+            }
+
+            personDropdown.AddOptions(ids);
+            _currentPersonId = ids[0];
+            personDropdown.onValueChanged.AddListener(OnPersonSelected);
+        }
+
+        private void OnPersonSelected(int index)
+        {
+            if (personDropdown == null) return;
+            if (index >= 0 && index < personDropdown.options.Count)
+            {
+                _currentPersonId = personDropdown.options[index].text;
+            }
+        }
+
+        private string EnsureCurrentPersonId()
+        {
+            if (!string.IsNullOrEmpty(_currentPersonId)) return _currentPersonId;
+
+            if (PersonStateManager.Instance != null && PersonStateManager.Instance.GetAllAgents().Count > 0)
+            {
+                _currentPersonId = PersonStateManager.Instance.GetAllAgents()[0]?.PersonId ?? "Unknown";
+            }
+            else if (PersonStateController.Instance != null)
+            {
+                _currentPersonId = string.IsNullOrEmpty(PersonStateController.Instance.PersonId)
+                    ? "Unknown"
+                    : PersonStateController.Instance.PersonId;
+            }
+            else
+            {
+                _currentPersonId = "Unknown";
+            }
+
+            return _currentPersonId;
         }
 
         /// <summary>

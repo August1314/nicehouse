@@ -24,16 +24,23 @@ namespace NiceHouse.Data
     {
         public PersonState state;
         public string currentRoomId;
+        public string personId;
         public float stateDuration; // 当前状态持续时间（秒）
     }
 
     /// <summary>
-    /// 数字人状态控制器，管理数字人的行为状态和所在房间。
-    /// 挂在代表数字人的 GameObject 上。
+    /// 数字人状态控制器，管理单个数字人的状态与所在房间。
+    /// 兼容旧版单例（Instance 指向首个 Agent），但允许场景中存在多个实例，配合 PersonStateManager 使用。
     /// </summary>
     public class PersonStateController : MonoBehaviour
     {
         public static PersonStateController Instance { get; private set; }
+
+        [Tooltip("数字人唯一标识（多数字人时需唯一）")]
+        [SerializeField] private string personId = "PersonA";
+
+        [Tooltip("默认房间（避免为空）")]
+        [SerializeField] private string defaultRoomId = "LivingRoom01";
 
         [Tooltip("当前数字人状态")]
         public PersonStatus Status { get; private set; }
@@ -41,11 +48,19 @@ namespace NiceHouse.Data
         [Tooltip("状态变化事件，参数：新状态、房间ID")]
         public System.Action<PersonState, string> OnStateChanged;
 
+        /// <summary>
+        /// 带实例引用的状态变化事件（多 Agent 监听用）。
+        /// </summary>
+        public System.Action<PersonStateController, PersonState, string> OnStateChangedWithAgent;
+
+        public string PersonId => personId;
+
         private float _stateStartTime;
 
         private void Awake()
         {
             Initialize();
+            TryRegisterToManager();
         }
 
         private void Start()
@@ -55,22 +70,19 @@ namespace NiceHouse.Data
             {
                 Initialize();
             }
+            TryRegisterToManager();
         }
 
         private void Initialize()
         {
-            // 如果 Instance 已存在且不是当前对象，销毁当前对象
-            if (Instance != null && Instance != this)
-            {
-                Debug.LogWarning($"[PersonStateController] Duplicate instance detected on {gameObject.name}, destroying duplicate.");
-                Destroy(gameObject);
-                return;
-            }
-
-            // 如果 Instance 为 null，设置为当前对象
+            // 保持首个实例作为兼容单例
             if (Instance == null)
             {
                 Instance = this;
+            }
+            else if (Instance != this)
+            {
+                Debug.LogWarning($"[PersonStateController] Multiple instances detected. Instance kept as {Instance.gameObject.name}, current: {gameObject.name}");
             }
 
             // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
@@ -79,12 +91,21 @@ namespace NiceHouse.Data
             Status = new PersonStatus
             {
                 state = PersonState.Idle,
-                currentRoomId = "LivingRoom01", // 默认房间，避免为空
+                currentRoomId = string.IsNullOrEmpty(defaultRoomId) ? "LivingRoom01" : defaultRoomId,
+                personId = personId,
                 stateDuration = 0f
             };
             _stateStartTime = Time.time;
 
             Debug.Log("[PersonStateController] Initialized");
+        }
+
+        private void OnDestroy()
+        {
+            if (PersonStateManager.Instance != null)
+            {
+                PersonStateManager.Instance.UnregisterAgent(this);
+            }
         }
 
         private void Update()
@@ -109,10 +130,12 @@ namespace NiceHouse.Data
 
             Status.state = newState;
             Status.currentRoomId = roomId;
+            Status.personId = personId;
             _stateStartTime = Time.time;
             Status.stateDuration = 0f;
 
             OnStateChanged?.Invoke(newState, roomId);
+            OnStateChangedWithAgent?.Invoke(this, newState, roomId);
         }
 
         /// <summary>
@@ -121,6 +144,14 @@ namespace NiceHouse.Data
         public float GetStateDuration()
         {
             return Status != null ? Status.stateDuration : 0f;
+        }
+
+        private void TryRegisterToManager()
+        {
+            if (PersonStateManager.Instance != null)
+            {
+                PersonStateManager.Instance.RegisterAgent(this);
+            }
         }
     }
 }

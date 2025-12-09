@@ -20,10 +20,11 @@ namespace NiceHouse.Data
     {
         public static ActivityTracker Instance { get; private set; }
 
-        private readonly Dictionary<string, ActivityData> _roomActivity = new Dictionary<string, ActivityData>();
+        private readonly Dictionary<string, Dictionary<string, ActivityData>> _activityByPersonAndRoom =
+            new Dictionary<string, Dictionary<string, ActivityData>>();
 
-        private string _currentRoomId;
-        private float _enterRoomTime;
+        private readonly Dictionary<string, (string roomId, float enterTime)> _agentStay =
+            new Dictionary<string, (string roomId, float enterTime)>();
 
         private void Awake()
         {
@@ -39,53 +40,88 @@ namespace NiceHouse.Data
 
         private void Start()
         {
-            // 监听数字人状态变化
-            if (PersonStateController.Instance != null)
+            // 监听多 Agent 状态变化
+            if (PersonStateManager.Instance != null)
             {
-                PersonStateController.Instance.OnStateChanged += OnPersonStateChanged;
+                PersonStateManager.Instance.OnAnyStateChanged += OnPersonStateChanged;
+            }
+            else if (PersonStateController.Instance != null)
+            {
+                // 兼容单实例
+                PersonStateController.Instance.OnStateChanged += OnLegacyPersonStateChanged;
             }
         }
 
         private void OnDestroy()
         {
+            if (PersonStateManager.Instance != null)
+            {
+                PersonStateManager.Instance.OnAnyStateChanged -= OnPersonStateChanged;
+            }
             if (PersonStateController.Instance != null)
             {
-                PersonStateController.Instance.OnStateChanged -= OnPersonStateChanged;
+                PersonStateController.Instance.OnStateChanged -= OnLegacyPersonStateChanged;
             }
         }
 
-        private void OnPersonStateChanged(PersonState newState, string roomId)
+        private void OnPersonStateChanged(PersonStateController agent, PersonState newState, string roomId)
         {
-            // 当数字人进入新房间时，记录离开旧房间的时间
-            if (!string.IsNullOrEmpty(_currentRoomId) && _currentRoomId != roomId)
+            if (agent == null) return;
+            string personId = string.IsNullOrEmpty(agent.PersonId) ? "Unknown" : agent.PersonId;
+            HandleRoomChange(personId, roomId);
+        }
+
+        private void OnLegacyPersonStateChanged(PersonState newState, string roomId)
+        {
+            HandleRoomChange("Default", roomId);
+        }
+
+        private void HandleRoomChange(string personId, string roomId)
+        {
+            if (!_agentStay.TryGetValue(personId, out var stay))
             {
-                OnPersonLeaveRoom(_currentRoomId, Time.time - _enterRoomTime);
+                stay = (roomId: string.Empty, enterTime: 0f);
             }
 
-            // 记录进入新房间
+            // 离开旧房间
+            if (!string.IsNullOrEmpty(stay.roomId) && stay.roomId != roomId)
+            {
+                OnPersonLeaveRoom(personId, stay.roomId, Time.time - stay.enterTime);
+            }
+
+            // 进入新房间
             if (!string.IsNullOrEmpty(roomId))
             {
-                OnPersonEnterRoom(roomId);
+                OnPersonEnterRoom(personId, roomId);
             }
         }
 
         /// <summary>
         /// 数字人进入房间时调用。
         /// </summary>
-        public void OnPersonEnterRoom(string roomId)
+        public void OnPersonEnterRoom(string personId, string roomId)
         {
             if (string.IsNullOrEmpty(roomId)) return;
+            if (string.IsNullOrEmpty(personId)) personId = "Unknown";
 
-            _currentRoomId = roomId;
-            _enterRoomTime = Time.time;
+            _agentStay[personId] = (roomId, Time.time);
 
-            if (!_roomActivity.TryGetValue(roomId, out var data))
+            var dict = GetOrCreatePersonMap(personId);
+            if (!dict.TryGetValue(roomId, out var data))
             {
                 data = new ActivityData();
-                _roomActivity[roomId] = data;
+                dict[roomId] = data;
             }
 
             data.visitCount++;
+        }
+
+        /// <summary>
+        /// 兼容旧接口：未指定 personId 时使用 Unknown。
+        /// </summary>
+        public void OnPersonEnterRoom(string roomId)
+        {
+            OnPersonEnterRoom("Unknown", roomId);
         }
 
         /// <summary>
@@ -93,14 +129,24 @@ namespace NiceHouse.Data
         /// </summary>
         /// <param name="roomId">房间ID</param>
         /// <param name="stayTime">停留时间（秒）</param>
-        public void OnPersonLeaveRoom(string roomId, float stayTime)
+        public void OnPersonLeaveRoom(string personId, string roomId, float stayTime)
         {
             if (string.IsNullOrEmpty(roomId)) return;
+            if (string.IsNullOrEmpty(personId)) personId = "Unknown";
 
-            if (_roomActivity.TryGetValue(roomId, out var data))
+            var dict = GetOrCreatePersonMap(personId);
+            if (dict.TryGetValue(roomId, out var data))
             {
                 data.totalStayTime += stayTime;
             }
+        }
+
+        /// <summary>
+        /// 兼容旧接口：未指定 personId 时使用 Unknown。
+        /// </summary>
+        public void OnPersonLeaveRoom(string roomId, float stayTime)
+        {
+            OnPersonLeaveRoom("Unknown", roomId, stayTime);
         }
 
         /// <summary>
@@ -108,23 +154,84 @@ namespace NiceHouse.Data
         /// </summary>
         public ActivityData GetRoomActivity(string roomId)
         {
-            return _roomActivity.TryGetValue(roomId, out var data) ? data : new ActivityData();
+            var total = new ActivityData();
+            foreach (var person in _activityByPersonAndRoom.Values)
+            {
+                if (person.TryGetValue(roomId, out var data))
+                {
+                    total.visitCount += data.visitCount;
+                    total.totalStayTime += data.totalStayTime;
+                }
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// 获取指定人的房间活动数据。
+        /// </summary>
+        public ActivityData GetRoomActivity(string personId, string roomId)
+        {
+            if (string.IsNullOrEmpty(personId) || string.IsNullOrEmpty(roomId)) return new ActivityData();
+            return _activityByPersonAndRoom.TryGetValue(personId, out var dict) && dict.TryGetValue(roomId, out var data)
+                ? data
+                : new ActivityData();
         }
 
         /// <summary>
         /// 获取所有房间的活动数据。
         /// </summary>
-        public IReadOnlyDictionary<string, ActivityData> GetAllRoomActivity() => _roomActivity;
+        public IReadOnlyDictionary<string, ActivityData> GetAllRoomActivity()
+        {
+            var merged = new Dictionary<string, ActivityData>();
+            foreach (var person in _activityByPersonAndRoom.Values)
+            {
+                foreach (var kv in person)
+                {
+                    if (!merged.TryGetValue(kv.Key, out var data))
+                    {
+                        data = new ActivityData();
+                        merged[kv.Key] = data;
+                    }
+
+                    data.visitCount += kv.Value.visitCount;
+                    data.totalStayTime += kv.Value.totalStayTime;
+                }
+            }
+            return merged;
+        }
+
+        /// <summary>
+        /// 获取指定人的全部活动数据。
+        /// </summary>
+        public IReadOnlyDictionary<string, ActivityData> GetAllRoomActivity(string personId)
+        {
+            if (string.IsNullOrEmpty(personId)) return new Dictionary<string, ActivityData>();
+            if (_activityByPersonAndRoom.TryGetValue(personId, out var dict))
+            {
+                return dict;
+            }
+            return new Dictionary<string, ActivityData>();
+        }
 
         /// <summary>
         /// 重置所有活动数据。
         /// </summary>
         public void ResetAll()
         {
-            _roomActivity.Clear();
-            _currentRoomId = string.Empty;
-            _enterRoomTime = 0f;
+            _activityByPersonAndRoom.Clear();
+            _agentStay.Clear();
+        }
+
+        private Dictionary<string, ActivityData> GetOrCreatePersonMap(string personId)
+        {
+            if (!_activityByPersonAndRoom.TryGetValue(personId, out var dict))
+            {
+                dict = new Dictionary<string, ActivityData>();
+                _activityByPersonAndRoom[personId] = dict;
+            }
+            return dict;
         }
     }
 }
+
 

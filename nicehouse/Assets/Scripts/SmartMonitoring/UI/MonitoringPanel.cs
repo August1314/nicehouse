@@ -17,6 +17,8 @@ namespace NiceHouse.SmartMonitoring
         public TextMeshProUGUI stateText;
         public TextMeshProUGUI roomText;
         public TextMeshProUGUI durationText;
+        [Header("数字人选择")]
+        public TMP_Dropdown personDropdown;
 
         [Header("状态切换按钮")]
         public Button idleButton;
@@ -46,16 +48,12 @@ namespace NiceHouse.SmartMonitoring
 
         private float _timer;
         private PersonStateSimulator _stateSimulator;
+        private string _currentPersonId = null;
 
         private void Start()
         {
-            // 查找或创建 PersonStateSimulator
+            // 尝试找到场景中的模拟器（可选，无则跳过）
             _stateSimulator = FindObjectOfType<PersonStateSimulator>();
-            if (_stateSimulator == null)
-            {
-                GameObject simulatorObj = new GameObject("PersonStateSimulator");
-                _stateSimulator = simulatorObj.AddComponent<PersonStateSimulator>();
-            }
 
             // 绑定状态切换按钮
             if (idleButton != null) idleButton.onClick.AddListener(() => ChangeState(PersonState.Idle));
@@ -68,6 +66,9 @@ namespace NiceHouse.SmartMonitoring
 
             // 初始化房间下拉菜单
             InitializeRoomDropdown();
+
+            // 初始化人物下拉
+            InitializePersonDropdown();
 
             // 初始化告警设置
             InitializeAlarmSettings();
@@ -112,16 +113,17 @@ namespace NiceHouse.SmartMonitoring
         /// </summary>
         private void UpdatePersonState()
         {
-            if (PersonStateController.Instance == null) return;
+            var agent = GetSelectedAgent();
+            if (agent == null || agent.Status == null) return;
 
-            var status = PersonStateController.Instance.Status;
+            var status = agent.Status;
             if (status == null) return;
 
             if (stateText != null)
             {
                 string stateName = GetStateName(status.state);
                 string stateColor = GetStateColor(status.state);
-                stateText.text = $"<color=#CCCCCC>State:</color> <color={stateColor}><b>{stateName}</b></color>";
+                stateText.text = $"<color=#CCCCCC>State:</color> <color={stateColor}><b>{stateName}</b></color> <color=#888888>({agent.PersonId})</color>";
             }
 
             if (roomText != null)
@@ -182,6 +184,10 @@ namespace NiceHouse.SmartMonitoring
                 {
                     text.text = alarm.roomId;
                 }
+                else if (textName.Contains("person"))
+                {
+                    text.text = string.IsNullOrEmpty(alarm.personId) ? "Unknown" : alarm.personId;
+                }
                 else if (textName.Contains("time"))
                 {
                     text.text = alarm.time.ToString("HH:mm:ss");
@@ -210,10 +216,19 @@ namespace NiceHouse.SmartMonitoring
         /// </summary>
         private void ChangeState(PersonState newState)
         {
-            if (_stateSimulator == null) return;
-
             string roomId = GetSelectedRoomId();
-            _stateSimulator.ChangeState(newState, roomId);
+            var agent = GetSelectedAgent();
+            if (agent != null)
+            {
+                agent.ChangeState(newState, roomId);
+                return;
+            }
+
+            // 退化到模拟器（如果存在）
+            if (_stateSimulator != null)
+            {
+                _stateSimulator.ChangeState(newState, roomId);
+            }
         }
 
         /// <summary>
@@ -272,6 +287,73 @@ namespace NiceHouse.SmartMonitoring
                 string roomId = roomDropdown.options[index].text;
                 _stateSimulator.SetCurrentRoom(roomId);
             }
+        }
+
+        /// <summary>
+        /// 初始化人物下拉菜单
+        /// </summary>
+        private void InitializePersonDropdown()
+        {
+            if (personDropdown == null) return;
+
+            personDropdown.ClearOptions();
+            List<string> ids = new List<string>();
+            if (PersonStateManager.Instance != null)
+            {
+                foreach (var agent in PersonStateManager.Instance.GetAllAgents())
+                {
+                    if (agent == null) continue;
+                    var pid = string.IsNullOrEmpty(agent.PersonId) ? "Unknown" : agent.PersonId;
+                    if (!ids.Contains(pid))
+                    {
+                        ids.Add(pid);
+                    }
+                }
+            }
+            else if (PersonStateController.Instance != null)
+            {
+                ids.Add(string.IsNullOrEmpty(PersonStateController.Instance.PersonId)
+                    ? "Unknown"
+                    : PersonStateController.Instance.PersonId);
+            }
+
+            if (ids.Count == 0)
+            {
+                ids.Add("Unknown");
+            }
+
+            personDropdown.AddOptions(ids);
+            _currentPersonId = ids[0];
+            personDropdown.onValueChanged.AddListener(OnPersonSelected);
+        }
+
+        private void OnPersonSelected(int index)
+        {
+            if (personDropdown == null) return;
+            if (index >= 0 && index < personDropdown.options.Count)
+            {
+                _currentPersonId = personDropdown.options[index].text;
+            }
+        }
+
+        private PersonStateController GetSelectedAgent()
+        {
+            // 优先按选择的 personId
+            if (!string.IsNullOrEmpty(_currentPersonId) && PersonStateManager.Instance != null)
+            {
+                if (PersonStateManager.Instance.TryGetAgent(_currentPersonId, out var agent))
+                {
+                    return agent;
+                }
+            }
+
+            // 退化到默认 Agent
+            if (PersonStateManager.Instance != null)
+            {
+                return PersonStateManager.Instance.DefaultAgent;
+            }
+
+            return PersonStateController.Instance;
         }
 
         /// <summary>
