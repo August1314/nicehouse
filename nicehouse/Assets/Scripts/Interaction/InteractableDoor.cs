@@ -1,9 +1,12 @@
 using UnityEngine;
-using NiceHouse.EnvironmentControl;
 using NiceHouse.ControlHub;
 
 namespace NiceHouse.Interaction
 {
+    /// <summary>
+    /// 原有的门交互脚本：射线点击后简单旋转门到 0/90 度。
+    /// 仅新增可选的 DoorAudio 播放，不改原旋转逻辑。
+    /// </summary>
     [RequireComponent(typeof(Collider))]
     public class InteractableDoor : MonoBehaviour, IRaycastInteractable
     {
@@ -11,8 +14,11 @@ namespace NiceHouse.Interaction
         [Tooltip("要控制的门控制器（如不指定则自动查找）")]
         public DoorController doorController;
 
+        [Tooltip("门开关音效（可选）")]
+        public DoorAudio doorAudio;
+
         [Header("交互设置")]
-        [Tooltip("交互距离限制（0表示无限制）")]
+        [Tooltip("交互距离限制（0 表示无限制）")]
         public float interactionDistance = 0f;
 
         [Tooltip("开门时的提示文字")]
@@ -35,7 +41,7 @@ namespace NiceHouse.Interaction
 
         private void Awake()
         {
-            // 自动查找DoorController
+            // 自动查找DoorController（保持原行为，仅用于兼容）
             if (doorController == null)
             {
                 doorController = GetComponent<DoorController>();
@@ -43,6 +49,12 @@ namespace NiceHouse.Interaction
                 {
                     doorController = GetComponentInParent<DoorController>();
                 }
+            }
+
+            // 自动查找DoorAudio（新增，可选）
+            if (doorAudio == null)
+            {
+                doorAudio = GetComponent<DoorAudio>() ?? GetComponentInParent<DoorAudio>();
             }
 
             // 确保有Collider
@@ -79,7 +91,6 @@ namespace NiceHouse.Interaction
 
         public void OnRaycastClick(FPRaycastInteractor interactor)
         {
-            Debug.Log($"[InteractableDoor] {gameObject.name} 被点击");
             ToggleDoor();
         }
 
@@ -89,8 +100,6 @@ namespace NiceHouse.Interaction
             {
                 SetHighlight(true);
             }
-
-            Debug.Log($"[InteractableDoor] {gameObject.name} 悬停进入");
         }
 
         public void OnHoverExit(FPRaycastInteractor interactor)
@@ -99,8 +108,6 @@ namespace NiceHouse.Interaction
             {
                 SetHighlight(false);
             }
-
-            Debug.Log($"[InteractableDoor] {gameObject.name} 悬停离开");
         }
 
         private void SetHighlight(bool highlight)
@@ -112,50 +119,42 @@ namespace NiceHouse.Interaction
                 if (highlight)
                 {
                     if (_originalMaterial.HasProperty("_BaseColor"))
-                    {
                         _originalMaterial.SetColor("_BaseColor", highlightColor);
-                    }
                     else if (_originalMaterial.HasProperty("_Color"))
-                    {
                         _originalMaterial.SetColor("_Color", highlightColor);
-                    }
                 }
                 else
                 {
                     if (_originalMaterial.HasProperty("_BaseColor"))
-                    {
                         _originalMaterial.SetColor("_BaseColor", _originalColor);
-                    }
                     else if (_originalMaterial.HasProperty("_Color"))
-                    {
                         _originalMaterial.SetColor("_Color", _originalColor);
-                    }
                 }
             }
         }
 
         public void ToggleDoor()
         {
-            // 简化开门逻辑，直接旋转门
+            // 保留原有的简单旋转逻辑（0/90 切换）
             var rotation = transform.rotation;
-            var targetAngle = rotation.eulerAngles.y == 0 ? 90 : 0; // 开门旋转到90度，关门回到0度
+            var targetAngleIsOpen = rotation.eulerAngles.y == 0f; // 当前0则即将开门
+            var targetAngle = targetAngleIsOpen ? 90f : 0f;
             transform.rotation = Quaternion.Euler(rotation.eulerAngles.x, targetAngle, rotation.eulerAngles.z);
-        }
 
-        public float CurrentDoorAngle
-        {
-            get
+            // 播放音效（不影响原逻辑）
+            if (doorAudio != null)
             {
-                return transform.rotation.eulerAngles.y;
+                if (targetAngleIsOpen)
+                    doorAudio.PlayOpen();
+                else
+                    doorAudio.PlayClose();
             }
         }
 
-        public string HoverHint
-        {
-            get
-            {
-                return $"门角度: {CurrentDoorAngle:F1}°";
-            }
-        }
+        public float CurrentDoorAngle => transform.rotation.eulerAngles.y;
+
+        public string HoverHint => doorController != null
+            ? (doorController.IsDoorOpen ? closeHint : openHint)
+            : $"门角度 {CurrentDoorAngle:F1}°";
     }
 }
