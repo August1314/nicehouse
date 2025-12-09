@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using NiceHouse.Data;
 
@@ -52,7 +53,7 @@ namespace NiceHouse.HealthMonitoring
         private float _heartRateAbnormalTime = 0f;
         private float _respirationAbnormalTime = 0f;
         private float _noMovementTime = 0f;
-        private float _lastAlarmTime = 0f;
+        private readonly Dictionary<string, float> _lastAlarmTimeByPerson = new Dictionary<string, float>();
 
         private void Awake()
         {
@@ -82,28 +83,49 @@ namespace NiceHouse.HealthMonitoring
         /// </summary>
         private void CheckHealthStatus()
         {
+            // 多人模式优先：遍历 Registry
+            if (HealthDataRegistry.Instance != null && PersonStateManager.Instance != null)
+            {
+                foreach (var agent in PersonStateManager.Instance.GetAllAgents())
+                {
+                    if (agent == null) continue;
+                    var pid = string.IsNullOrEmpty(agent.PersonId) ? "Unknown" : agent.PersonId;
+                    var health = HealthDataRegistry.Instance.GetOrCreate(pid);
+                    if (health == null) continue;
+                    CheckHeartRate(health.heartRate, pid, agent);
+                    CheckRespirationRate(health.respirationRate, pid, agent);
+                    CheckBodyMovement(health.bodyMovement, pid, agent);
+                }
+                return;
+            }
+
+            // 兼容单人模式
             if (HealthDataStore.Instance == null)
             {
                 Debug.LogWarning("[HealthMonitoringController] HealthDataStore.Instance is null!");
                 return;
             }
 
-            var health = HealthDataStore.Instance.Current;
-            if (health == null)
+            var single = HealthDataStore.Instance.Current;
+            if (single == null)
             {
                 Debug.LogWarning("[HealthMonitoringController] HealthDataStore.Current is null!");
                 return;
             }
 
-            CheckHeartRate(health.heartRate);
-            CheckRespirationRate(health.respirationRate);
-            CheckBodyMovement(health.bodyMovement);
+            var defaultAgent = PersonStateManager.Instance != null
+                ? PersonStateManager.Instance.DefaultAgent
+                : PersonStateController.Instance;
+            var singlePid = defaultAgent != null ? defaultAgent.PersonId : "Unknown";
+            CheckHeartRate(single.heartRate, singlePid, defaultAgent);
+            CheckRespirationRate(single.respirationRate, singlePid, defaultAgent);
+            CheckBodyMovement(single.bodyMovement, singlePid, defaultAgent);
         }
 
         /// <summary>
         /// 检查心率
         /// </summary>
-        private void CheckHeartRate(int heartRate)
+        private void CheckHeartRate(int heartRate, string personId, PersonStateController agent)
         {
             bool isAbnormal = heartRate < heartRateMin || heartRate > heartRateMax;
 
@@ -114,7 +136,7 @@ namespace NiceHouse.HealthMonitoring
                 {
                     string message = $"Heart rate abnormal: {heartRate} bpm (normal: {heartRateMin}-{heartRateMax})";
                     Debug.Log($"[HealthMonitoringController] Heart rate abnormal detected: {heartRate} bpm, abnormal time: {_heartRateAbnormalTime:F1}s");
-                    TriggerHealthAlarm(message);
+                    TriggerHealthAlarm(message, personId, agent);
                     _heartRateAbnormalTime = 0f; // 重置计时器
                 }
             }
@@ -131,7 +153,7 @@ namespace NiceHouse.HealthMonitoring
         /// <summary>
         /// 检查呼吸率
         /// </summary>
-        private void CheckRespirationRate(int respirationRate)
+        private void CheckRespirationRate(int respirationRate, string personId, PersonStateController agent)
         {
             bool isAbnormal = respirationRate < respirationRateMin || respirationRate > respirationRateMax;
 
@@ -141,7 +163,7 @@ namespace NiceHouse.HealthMonitoring
                 if (_respirationAbnormalTime >= abnormalDurationThreshold)
                 {
                     string message = $"Respiration rate abnormal: {respirationRate} /min (normal: {respirationRateMin}-{respirationRateMax})";
-                    TriggerHealthAlarm(message);
+                    TriggerHealthAlarm(message, personId, agent);
                     _respirationAbnormalTime = 0f; // 重置计时器
                 }
             }
@@ -154,7 +176,7 @@ namespace NiceHouse.HealthMonitoring
         /// <summary>
         /// 检查体动
         /// </summary>
-        private void CheckBodyMovement(float bodyMovement)
+        private void CheckBodyMovement(float bodyMovement, string personId, PersonStateController agent)
         {
             if (bodyMovement < bodyMovementMin)
             {
@@ -162,7 +184,7 @@ namespace NiceHouse.HealthMonitoring
                 if (_noMovementTime >= noMovementDurationThreshold)
                 {
                     string message = $"No body movement detected for extended period ({_noMovementTime / 60f:F1} minutes)";
-                    TriggerHealthAlarm(message);
+                    TriggerHealthAlarm(message, personId, agent);
                     _noMovementTime = 0f; // 重置计时器
                 }
             }
@@ -175,37 +197,38 @@ namespace NiceHouse.HealthMonitoring
         /// <summary>
         /// 触发健康异常告警
         /// </summary>
-        private void TriggerHealthAlarm(string message)
+        private void TriggerHealthAlarm(string message, string personId, PersonStateController agent)
         {
             // 测试模式下跳过冷却时间检查
             if (!testMode)
             {
-                // 检查告警冷却时间
-                float timeSinceLastAlarm = Time.time - _lastAlarmTime;
-                if (timeSinceLastAlarm < alarmCooldown)
+                // 按人冷却
+                var pidKey = string.IsNullOrEmpty(personId) ? "Unknown" : personId;
+                if (_lastAlarmTimeByPerson.TryGetValue(pidKey, out var last))
                 {
-                    Debug.Log($"[HealthMonitoringController] Alarm in cooldown, time remaining: {alarmCooldown - timeSinceLastAlarm:F1}s");
-                    return; // 还在冷却期内，不触发告警
+                    float timeSinceLastAlarm = Time.time - last;
+                    if (timeSinceLastAlarm < alarmCooldown)
+                    {
+                        Debug.Log($"[HealthMonitoringController] Alarm in cooldown for {pidKey}, remaining: {alarmCooldown - timeSinceLastAlarm:F1}s");
+                        return; // 还在冷却期内，不触发告警
+                    }
                 }
             }
 
-            // 获取房间ID，如果为空则使用默认值
+            // 获取房间与人物信息
             string roomId = "Unknown";
-            if (PersonStateController.Instance != null && PersonStateController.Instance.Status != null)
+            if (agent != null && agent.Status != null)
             {
-                roomId = PersonStateController.Instance.Status.currentRoomId;
-                if (string.IsNullOrEmpty(roomId))
-                {
-                    roomId = "Unknown";
-                }
+                roomId = string.IsNullOrEmpty(agent.Status.currentRoomId) ? "Unknown" : agent.Status.currentRoomId;
             }
 
             if (AlarmManager.Instance != null)
             {
-                AlarmManager.Instance.AddAlarm(AlarmType.HealthAbnormal, roomId);
-                _lastAlarmTime = Time.time;
+                AlarmManager.Instance.AddAlarm(AlarmType.HealthAbnormal, roomId, personId);
+                var pidKey = string.IsNullOrEmpty(personId) ? "Unknown" : personId;
+                _lastAlarmTimeByPerson[pidKey] = Time.time;
 
-                Debug.Log($"[HealthMonitoringController] Health alarm triggered: {message} in {roomId}");
+                Debug.Log($"[HealthMonitoringController] Health alarm triggered: {message} in {roomId} person={personId}");
             }
             else
             {
@@ -228,7 +251,11 @@ namespace NiceHouse.HealthMonitoring
         /// </summary>
         public void TriggerAlarmManually(string message = "Manual health alarm")
         {
-            TriggerHealthAlarm(message);
+            var agent = PersonStateManager.Instance != null
+                ? PersonStateManager.Instance.DefaultAgent
+                : PersonStateController.Instance;
+            var personId = agent != null ? agent.PersonId : "Unknown";
+            TriggerHealthAlarm(message, personId, agent);
         }
     }
 }

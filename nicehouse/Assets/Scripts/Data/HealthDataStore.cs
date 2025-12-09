@@ -15,7 +15,7 @@ namespace NiceHouse.Data
     }
 
     /// <summary>
-    /// 健康数据存储与模拟器。
+    /// 健康数据存储与模拟器（单人物兼容）。
     /// </summary>
     public class HealthDataStore : MonoBehaviour
     {
@@ -52,7 +52,7 @@ namespace NiceHouse.Data
             // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
             // 如果需要跨场景保持，应该对 DataRoot 调用 DontDestroyOnLoad
 
-            // 初始化数据
+            // 初始化单人数据（兼容旧用法）
             Current = new VitalSignsData
             {
                 heartRate = baseHeartRate,
@@ -94,9 +94,13 @@ namespace NiceHouse.Data
             );
 
             // 体动强度：根据数字人状态决定
-            if (PersonStateController.Instance != null)
+            var agent = PersonStateManager.Instance != null
+                ? PersonStateManager.Instance.DefaultAgent
+                : PersonStateController.Instance;
+
+            if (agent != null)
             {
-                var state = PersonStateController.Instance.Status?.state ?? PersonState.Idle;
+                var state = agent.Status?.state ?? PersonState.Idle;
                 Current.bodyMovement = state switch
                 {
                     PersonState.Walking => 0.8f + Random.Range(-0.1f, 0.1f),
@@ -112,9 +116,9 @@ namespace NiceHouse.Data
             }
 
             // 睡眠阶段：根据数字人状态
-            if (PersonStateController.Instance != null)
+            if (agent != null)
             {
-                var state = PersonStateController.Instance.Status?.state ?? PersonState.Idle;
+                var state = agent.Status?.state ?? PersonState.Idle;
                 Current.sleepStage = state switch
                 {
                     PersonState.Sleeping => Random.value > 0.5f ? 1 : 2, // 浅睡或深睡
@@ -125,6 +129,24 @@ namespace NiceHouse.Data
             {
                 Current.sleepStage = 0;
             }
+        }
+
+        /// <summary>
+        /// 将当前单人数据同步到 HealthDataRegistry（用于兼容旧逻辑时的桥接）。
+        /// </summary>
+        public void SyncToRegistry(string personId = null)
+        {
+            if (HealthDataRegistry.Instance == null || Current == null) return;
+            if (string.IsNullOrEmpty(personId))
+            {
+                // 使用默认 Agent 的 personId，否则 Unknown
+                var agent = PersonStateManager.Instance != null
+                    ? PersonStateManager.Instance.DefaultAgent
+                    : PersonStateController.Instance;
+                personId = agent != null ? agent.PersonId : "Unknown";
+            }
+
+            HealthDataRegistry.Instance.Set(personId, Current);
         }
     }
 }

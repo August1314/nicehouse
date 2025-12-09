@@ -26,13 +26,15 @@ namespace NiceHouse.Data
     {
         public AlarmType type;
         public string roomId;
+        public string personId;
         public System.DateTime time;
         public bool handled;
 
-        public AlarmRecord(AlarmType type, string roomId)
+        public AlarmRecord(AlarmType type, string roomId, string personId = null)
         {
             this.type = type;
             this.roomId = roomId;
+            this.personId = personId;
             this.time = System.DateTime.Now;
             this.handled = false;
         }
@@ -78,9 +80,10 @@ namespace NiceHouse.Data
         /// </summary>
         /// <param name="type">告警类型</param>
         /// <param name="roomId">房间ID</param>
-        public void AddAlarm(AlarmType type, string roomId)
+        /// <param name="personId">数字人ID（可选）</param>
+        public void AddAlarm(AlarmType type, string roomId, string personId = null)
         {
-            var record = new AlarmRecord(type, roomId);
+            var record = new AlarmRecord(type, roomId, personId);
             _records.Add(record);
 
             // 限制记录数量
@@ -89,7 +92,7 @@ namespace NiceHouse.Data
                 _records.RemoveAt(0);
             }
 
-            Debug.Log($"[Alarm] {type} in {roomId} at {record.time:HH:mm:ss}");
+            Debug.Log($"[Alarm] {type} in {roomId} at {record.time:HH:mm:ss} person={personId}");
 
             OnAlarmAdded?.Invoke(record);
         }
