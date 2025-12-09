@@ -1,9 +1,14 @@
 fileFormatVersion: 2
-guid: 2ce38213bf29648979913aba2fa67d4c
+guid: 8f99dbd4117547e4a86d7910dd239347
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: T_smoke_alarm_1001
+    second: {fileID: 2100000, guid: 4ff5556f4606f3f4d830b2b358eb48e0, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

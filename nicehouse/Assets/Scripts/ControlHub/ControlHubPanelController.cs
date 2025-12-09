@@ -232,5 +232,3 @@ namespace NiceHouse.ControlHub
         }
     }
 }
-
-
