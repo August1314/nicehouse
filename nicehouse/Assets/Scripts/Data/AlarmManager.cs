@@ -15,7 +15,9 @@ namespace NiceHouse.Data
         LongSitting,     // 久坐
         LongBathing,     // 久浴
         HealthAbnormal,  // 健康异常
-        EmergencyCall    // 一键呼叫
+        EmergencyCall,   // 一键呼叫
+        TemperatureHigh, // 温度过高
+        TemperatureLow   // 温度过低
     }
 
     /// <summary>
@@ -54,6 +56,10 @@ namespace NiceHouse.Data
         [Tooltip("场景切换时保持不销毁")]
         public bool dontDestroyOnLoad = true;
 
+        [Header("启动设置")]
+        [Tooltip("启动时清除所有告警记录（避免残留告警导致启动时闪烁）")]
+        public bool clearAlarmsOnStart = true;
+
         [Tooltip("告警事件，参数：告警记录")]
         public System.Action<AlarmRecord> OnAlarmAdded;
 
@@ -73,6 +79,16 @@ namespace NiceHouse.Data
                 DontDestroyOnLoad(gameObject);
             }
             // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
+        }
+
+        private void Start()
+        {
+            // 启动时清除所有告警记录（避免残留告警导致启动时闪烁）
+            if (clearAlarmsOnStart)
+            {
+                _records.Clear();
+                Debug.Log("[AlarmManager] Cleared all alarms on start");
+            }
         }
 
         /// <summary>

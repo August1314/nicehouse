@@ -24,9 +24,14 @@ namespace NiceHouse.SmartMonitoring
         [Tooltip("Automatically sync siren with target light state.")]
         public bool followLight = true;
 
+        [Header("启动设置")]
+        [Tooltip("启动延迟（秒），避免启动时立即播放")]
+        public float startDelay = 1f;
+
         private AudioSource _audio;
         private bool _isPlaying;
         private bool _lastLightOn;
+        private bool _isInitialized = false;
 
         private void Awake()
         {
@@ -38,18 +43,32 @@ namespace NiceHouse.SmartMonitoring
         private void OnEnable()
         {
             _isPlaying = false;
-            if (followLight && targetLight != null)
+            _isInitialized = false;
+            
+            // 延迟初始化，避免启动时立即播放
+            if (startDelay > 0f)
             {
-                _lastLightOn = IsLightOn();
-                if (_lastLightOn)
-                {
-                    StartSiren();
-                }
+                Invoke(nameof(InitializeSiren), startDelay);
             }
             else
             {
-                StartSiren();
+                InitializeSiren();
             }
+        }
+
+        /// <summary>
+        /// 初始化警报器（延迟调用）
+        /// </summary>
+        private void InitializeSiren()
+        {
+            _isInitialized = true;
+            
+            if (followLight && targetLight != null)
+            {
+                _lastLightOn = IsLightOn();
+                // 不在启动时自动播放，只在灯光状态变化时播放
+            }
+            // 如果 followLight 为 false，也不自动播放，需要手动调用 StartSiren()
         }
 
         private void OnDisable()
@@ -59,6 +78,9 @@ namespace NiceHouse.SmartMonitoring
 
         private void Update()
         {
+            // 如果还未初始化，不检测灯光状态
+            if (!_isInitialized) return;
+            
             if (!followLight || targetLight == null) return;
 
             bool lightOn = IsLightOn();

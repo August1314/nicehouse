@@ -487,6 +487,8 @@ namespace NiceHouse.SmartMonitoring
                 AlarmType.GasLeak => "Gas Leak",
                 AlarmType.HealthAbnormal => "Health Abnormal",
                 AlarmType.EmergencyCall => "Emergency Call",
+                AlarmType.TemperatureHigh => "Temperature High",
+                AlarmType.TemperatureLow => "Temperature Low",
                 _ => type.ToString()
             };
         }

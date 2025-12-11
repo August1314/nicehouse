@@ -62,7 +62,6 @@ namespace NiceHouse.EnvironmentControl
 
         private Coroutine _loopDelayRoutine;
         private bool _lastIsOn;
-        private bool _loopStartedOnce;
         private float _loopSliceLocalOffset; // time offset inside loop clip that corresponds to loopSliceBegin
 
         private void Awake()
@@ -88,14 +87,12 @@ namespace NiceHouse.EnvironmentControl
             {
                 StartLoopImmediate();
             }
-            _loopStartedOnce = false;
         }
 
         private void OnDisable()
         {
             StopAllCoroutines();
             _loopSource?.Stop();
-            _loopStartedOnce = false;
         }
 
         private void Update()
@@ -128,7 +125,6 @@ namespace NiceHouse.EnvironmentControl
                     float baseOffset = _loopSliceLocalOffset;
                     float offset = Mathf.Clamp(baseOffset + loopReplayOffset, 0f, _loopClip.length - 0.01f);
                     _loopSource.time = offset;
-                    _loopStartedOnce = true;
                 }
             }
         }
@@ -191,7 +187,6 @@ namespace NiceHouse.EnvironmentControl
             {
                 _loopSource.time = 0f; // first entry at start of loop clip (firstLoopBegin)
                 _loopSource.Play();
-                _loopStartedOnce = true;
             }
         }
 
