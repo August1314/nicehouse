@@ -134,10 +134,12 @@ namespace NiceHouse.EnvironmentControl
             if (env.temperature > thresholds.temperatureHighThreshold)
             {
                 TriggerCooling(roomId);
+                TriggerTemperatureAlarm(roomId, true, env.temperature); // 触发高温告警
             }
             else if (env.temperature < thresholds.temperatureLowThreshold)
             {
                 TriggerHeating(roomId);
+                TriggerTemperatureAlarm(roomId, false, env.temperature); // 触发低温告警
             }
 
             // 湿度检查
@@ -262,6 +264,40 @@ namespace NiceHouse.EnvironmentControl
         }
 
         /// <summary>
+        /// 触发温度告警
+        /// </summary>
+        private void TriggerTemperatureAlarm(string roomId, bool isHigh, float temperature)
+        {
+            if (AlarmManager.Instance == null)
+            {
+                return;
+            }
+
+            // 使用冷却机制避免频繁告警
+            string alarmKey = $"Temperature{(isHigh ? "High" : "Low")}:{roomId}";
+            float cooldown = 60f; // 60秒冷却时间
+            float now = Time.time;
+            
+            // 检查冷却时间（使用静态字典存储，避免每次创建新实例）
+            if (!_temperatureAlarmCooldown.TryGetValue(alarmKey, out var lastTime) || (now - lastTime) >= cooldown)
+            {
+                AlarmType alarmType = isHigh ? AlarmType.TemperatureHigh : AlarmType.TemperatureLow;
+                AlarmManager.Instance.AddAlarm(alarmType, roomId);
+                _temperatureAlarmCooldown[alarmKey] = now;
+                
+                if (enableDebugLog)
+                {
+                    string tempStatus = isHigh ? "high" : "low";
+                    Debug.Log($"[EnvironmentController] Temperature {tempStatus} alarm triggered in {roomId} (temperature: {temperature:F1}°C)");
+                }
+            }
+        }
+
+        // 温度告警冷却字典
+        private static readonly System.Collections.Generic.Dictionary<string, float> _temperatureAlarmCooldown = 
+            new System.Collections.Generic.Dictionary<string, float>();
+
+        /// <summary>
         /// 触发湿度控制联动
         /// </summary>
         private void TriggerHumidityControl(string roomId)
@@ -326,7 +362,18 @@ namespace NiceHouse.EnvironmentControl
                             controller = device.GetComponent<FreshAirController>();
                             break;
                         case NiceHouse.Data.DeviceType.Light:
+                            // 优先查找 AlarmLightController，如果没有则查找 LightController
+                            controller = device.GetComponent<AlarmLightController>();
+                            if (controller == null)
+                            {
                             controller = device.GetComponent<LightController>();
+                            }
+                            break;
+                        case NiceHouse.Data.DeviceType.SmokeSensor:
+                            controller = device.GetComponent<SmokeDetectorController>();
+                            break;
+                        case NiceHouse.Data.DeviceType.HelpButton:
+                            controller = device.GetComponent<HelpButtonController>();
                             break;
                     }
 

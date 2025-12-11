@@ -19,6 +19,8 @@ namespace NiceHouse.EnvironmentControl
         public float startBegin = 1.3f;
         [Tooltip("Start segment ends at this time (keep it short to avoid dead air).")]
         public float startEnd = 2.8f;
+        [Tooltip("The very first loop entry starts here (e.g., a pre-roll before steady loop).")]
+        public float firstLoopBegin = 10.5f;
         [Tooltip("Loop audio is sliced from this time in the source clip.")]
         public float loopSliceBegin = 13f;
         [Tooltip("Loop audio ends at this time in the source clip.")]
@@ -28,12 +30,27 @@ namespace NiceHouse.EnvironmentControl
 
         [Header("Playback Timing")]
         [Tooltip("Delay (seconds) after start sfx before loop begins. Set 0 for immediate.")]
-        public float loopStartDelay = 0.6f;
+        public float loopStartDelay = 2f;
+        [Tooltip("When loop wraps, restart at this offset inside the loop slice (0 means exact loopSliceBegin).")]
+        public float loopReplayOffset = 0f;
+        [Tooltip("Seconds before loop end to trigger the restart into the slice.")]
+        public float loopTailGuard = 0.05f;
 
         [Header("Volumes")]
         public float startVolume = 1f;
         public float loopVolume = 0.6f;
         public float stopVolume = 1f;
+
+        [Header("3D Settings")]
+        [Tooltip("Enable 3D attenuation so the sound fades with distance.")]
+        public bool enable3DAttenuation = true;
+        [Tooltip("Full volume within this radius.")]
+        public float minDistance = 2f;
+        [Tooltip("Volume fades to near zero by this distance.")]
+        public float maxDistance = 15f;
+        [Range(0f, 1f)]
+        [Tooltip("Spatial blend (0=2D, 1=3D).")]
+        public float spatialBlend = 1f;
 
         private AirConditionerController _controller;
         private AudioSource _sfxSource;   // start/stop
@@ -45,6 +62,7 @@ namespace NiceHouse.EnvironmentControl
 
         private Coroutine _loopDelayRoutine;
         private bool _lastIsOn;
+        private float _loopSliceLocalOffset; // time offset inside loop clip that corresponds to loopSliceBegin
 
         private void Awake()
         {
@@ -56,6 +74,8 @@ namespace NiceHouse.EnvironmentControl
             _loopSource = gameObject.AddComponent<AudioSource>();
             _loopSource.playOnAwake = false;
             _loopSource.loop = true;
+            Apply3DSettings(_sfxSource);
+            Apply3DSettings(_loopSource);
 
             BuildClips();
         }
@@ -92,6 +112,21 @@ namespace NiceHouse.EnvironmentControl
             }
 
             _lastIsOn = isOn;
+        }
+
+        private void LateUpdate()
+        {
+            // Keep looping within the slice and skip the attack on each wrap
+            if (_loopClip != null && _loopSource != null && _loopSource.clip == _loopClip && _loopSource.isPlaying)
+            {
+                float guard = Mathf.Max(0.01f, loopTailGuard);
+                if (_loopSource.time >= _loopClip.length - guard)
+                {
+                    float baseOffset = _loopSliceLocalOffset;
+                    float offset = Mathf.Clamp(baseOffset + loopReplayOffset, 0f, _loopClip.length - 0.01f);
+                    _loopSource.time = offset;
+                }
+            }
         }
 
         private void HandleTurnOn()
@@ -150,6 +185,7 @@ namespace NiceHouse.EnvironmentControl
             _loopSource.clip = _loopClip;
             if (!_loopSource.isPlaying)
             {
+                _loopSource.time = 0f; // first entry at start of loop clip (firstLoopBegin)
                 _loopSource.Play();
             }
         }
@@ -159,7 +195,11 @@ namespace NiceHouse.EnvironmentControl
             if (combinedClip == null) return;
 
             _startClip = CreateSubClip(combinedClip, startBegin, startEnd, false);
-            _loopClip = CreateSubClip(combinedClip, loopSliceBegin, loopSliceEnd, true);
+
+            float loopClipBegin = Mathf.Min(firstLoopBegin, loopSliceBegin);
+            _loopSliceLocalOffset = Mathf.Max(0f, loopSliceBegin - loopClipBegin);
+            _loopClip = CreateSubClip(combinedClip, loopClipBegin, loopSliceEnd, true);
+
             _stopClip = CreateSubClip(combinedClip, stopBegin, combinedClip.length, false);
         }
 
@@ -181,6 +221,22 @@ namespace NiceHouse.EnvironmentControl
             clip.SetData(data, 0);
             // AudioSource controls looping; AudioClip no longer exposes wrapMode in newer Unity versions.
             return clip;
+        }
+
+        private void Apply3DSettings(AudioSource source)
+        {
+            if (source == null) return;
+            if (!enable3DAttenuation)
+            {
+                source.spatialBlend = 0f; // 2D
+                return;
+            }
+
+            source.spatialBlend = Mathf.Clamp01(spatialBlend);
+            source.rolloffMode = AudioRolloffMode.Logarithmic;
+            source.minDistance = Mathf.Max(0.01f, minDistance);
+            source.maxDistance = Mathf.Max(source.minDistance + 0.01f, maxDistance);
+            source.dopplerLevel = 0f; // avoid pitch shifts when moving
         }
     }
 }

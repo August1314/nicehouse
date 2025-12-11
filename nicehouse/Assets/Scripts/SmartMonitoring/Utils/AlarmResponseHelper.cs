@@ -46,6 +46,12 @@ namespace NiceHouse.SmartMonitoring
 
         private Dictionary<string, Coroutine> _roomFlashCoroutines = new Dictionary<string, Coroutine>();
         private Dictionary<string, List<Light>> _roomLights = new Dictionary<string, List<Light>>();
+        private Coroutine _globalAlarmLightCoroutine;
+        private List<Light> _globalAlarmLights;
+
+        [Header("启动设置")]
+        [Tooltip("启动时停止所有灯光闪烁（避免残留告警导致启动时闪烁）")]
+        public bool stopAllFlashOnStart = true;
 
         private void Awake()
         {
@@ -68,6 +74,15 @@ namespace NiceHouse.SmartMonitoring
             }
         }
 
+        private void Start()
+        {
+            // 启动时停止所有灯光闪烁，避免残留告警导致启动时闪烁
+            if (stopAllFlashOnStart)
+            {
+                StopAllLightFlash();
+            }
+        }
+
         /// <summary>
         /// 响应告警
         /// </summary>
@@ -83,6 +98,7 @@ namespace NiceHouse.SmartMonitoring
             if (enableLightFlash)
             {
                 FlashRoomLights(roomId, type);
+                FlashGlobalAlarmLight(type); // 同时闪烁全局报警灯
             }
 
             // 显示Console消息
@@ -136,6 +152,8 @@ namespace NiceHouse.SmartMonitoring
                 case AlarmType.Fall:
                 case AlarmType.Smoke:
                 case AlarmType.GasLeak:
+                case AlarmType.TemperatureHigh:
+                case AlarmType.TemperatureLow:
                     return emergencyAlarmSound != null ? emergencyAlarmSound : normalAlarmSound;
                 default:
                     return normalAlarmSound;
@@ -166,6 +184,56 @@ namespace NiceHouse.SmartMonitoring
             // 启动闪烁协程
             Coroutine flashCoroutine = StartCoroutine(FlashLightsCoroutine(lights, roomId, type));
             _roomFlashCoroutines[roomId] = flashCoroutine;
+        }
+
+        /// <summary>
+        /// 闪烁全局报警灯（任何房间告警时都会闪烁）
+        /// </summary>
+        private void FlashGlobalAlarmLight(AlarmType type)
+        {
+            // 获取全局报警灯
+            List<Light> globalLights = GetGlobalAlarmLights();
+            if (globalLights.Count == 0) return;
+
+            // 停止之前的全局报警灯闪烁协程
+            if (_globalAlarmLightCoroutine != null)
+            {
+                StopCoroutine(_globalAlarmLightCoroutine);
+            }
+
+            // 启动闪烁协程
+            _globalAlarmLightCoroutine = StartCoroutine(FlashLightsCoroutine(globalLights, "Global", type));
+        }
+
+        /// <summary>
+        /// 获取全局报警灯（所有带有 FlashingLight 且 isGlobalAlarmLight=true 的灯光）
+        /// </summary>
+        private List<Light> GetGlobalAlarmLights()
+        {
+            // 如果已缓存，直接返回
+            if (_globalAlarmLights != null && _globalAlarmLights.Count > 0)
+            {
+                return _globalAlarmLights;
+            }
+
+            _globalAlarmLights = new List<Light>();
+
+            // 查找所有带有 FlashingLight 组件的物体
+            var flashingLights = FindObjectsOfType<FlashingLight>();
+            foreach (var flashingLight in flashingLights)
+            {
+                // 检查是否是全局报警灯
+                if (flashingLight.isGlobalAlarmLight)
+                {
+                    Light light = flashingLight.GetComponent<Light>();
+                    if (light != null)
+                    {
+                        _globalAlarmLights.Add(light);
+                    }
+                }
+            }
+
+            return _globalAlarmLights;
         }
 
         /// <summary>
@@ -233,6 +301,14 @@ namespace NiceHouse.SmartMonitoring
             {
                 flashColor = new Color(1f, 0.7f, 0.2f); // 燃气偏橙
             }
+            else if (type == AlarmType.TemperatureHigh)
+            {
+                flashColor = new Color(1f, 0.4f, 0f); // 高温偏橙红
+            }
+            else if (type == AlarmType.TemperatureLow)
+            {
+                flashColor = new Color(0.2f, 0.4f, 1f); // 低温偏蓝
+            }
 
             float elapsed = 0f;
             bool isOn = true;
@@ -244,6 +320,13 @@ namespace NiceHouse.SmartMonitoring
                 {
                     if (lights[i] != null)
                     {
+                        // 检查是否有 FlashingLight 且正在手动闪烁，如果是则跳过（让手动闪烁优先）
+                        var flashingLight = lights[i].GetComponent<FlashingLight>();
+                        if (flashingLight != null && flashingLight.IsManuallyFlashing)
+                        {
+                            continue; // 跳过这个灯光，让 FlashingLight 自己控制
+                        }
+
                         if (isOn)
                         {
                             lights[i].intensity = originalIntensities[i] * 1.5f;
@@ -295,6 +378,54 @@ namespace NiceHouse.SmartMonitoring
         }
 
         /// <summary>
+        /// 停止全局报警灯闪烁
+        /// </summary>
+        public void StopGlobalAlarmLight()
+        {
+            if (_globalAlarmLightCoroutine != null)
+            {
+                StopCoroutine(_globalAlarmLightCoroutine);
+                _globalAlarmLightCoroutine = null;
+            }
+
+            // 恢复全局报警灯的原始状态
+            if (_globalAlarmLights != null)
+            {
+                foreach (var light in _globalAlarmLights)
+                {
+                    if (light != null)
+                    {
+                        // 尝试从 FlashingLight 获取原始状态
+                        var flashingLight = light.GetComponent<FlashingLight>();
+                        if (flashingLight != null)
+                        {
+                            // FlashingLight 会在 Update 中自动恢复
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 停止所有灯光闪烁（包括房间灯光和全局报警灯）
+        /// </summary>
+        public void StopAllLightFlash()
+        {
+            // 停止所有房间灯光
+            foreach (var coroutine in _roomFlashCoroutines.Values)
+            {
+                if (coroutine != null)
+                {
+                    StopCoroutine(coroutine);
+                }
+            }
+            _roomFlashCoroutines.Clear();
+
+            // 停止全局报警灯
+            StopGlobalAlarmLight();
+        }
+
+        /// <summary>
         /// 获取告警消息文本
         /// </summary>
         private string GetAlarmMessage(AlarmType type, string roomId)
@@ -308,6 +439,8 @@ namespace NiceHouse.SmartMonitoring
                 AlarmType.GasLeak => "Gas Leak",
                 AlarmType.HealthAbnormal => "Health Abnormal",
                 AlarmType.EmergencyCall => "Emergency Call",
+                AlarmType.TemperatureHigh => "Temperature High",
+                AlarmType.TemperatureLow => "Temperature Low",
                 _ => type.ToString()
             };
 

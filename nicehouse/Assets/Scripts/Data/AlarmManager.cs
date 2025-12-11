@@ -15,7 +15,9 @@ namespace NiceHouse.Data
         LongSitting,     // 久坐
         LongBathing,     // 久浴
         HealthAbnormal,  // 健康异常
-        EmergencyCall    // 一键呼叫
+        EmergencyCall,   // 一键呼叫
+        TemperatureHigh, // 温度过高
+        TemperatureLow   // 温度过低
     }
 
     /// <summary>
@@ -26,13 +28,15 @@ namespace NiceHouse.Data
     {
         public AlarmType type;
         public string roomId;
+        public string personId;
         public System.DateTime time;
         public bool handled;
 
-        public AlarmRecord(AlarmType type, string roomId)
+        public AlarmRecord(AlarmType type, string roomId, string personId = null)
         {
             this.type = type;
             this.roomId = roomId;
+            this.personId = personId;
             this.time = System.DateTime.Now;
             this.handled = false;
         }
@@ -51,6 +55,10 @@ namespace NiceHouse.Data
         [Header("生命周期")]
         [Tooltip("场景切换时保持不销毁")]
         public bool dontDestroyOnLoad = true;
+
+        [Header("启动设置")]
+        [Tooltip("启动时清除所有告警记录（避免残留告警导致启动时闪烁）")]
+        public bool clearAlarmsOnStart = true;
 
         [Tooltip("告警事件，参数：告警记录")]
         public System.Action<AlarmRecord> OnAlarmAdded;
@@ -73,14 +81,25 @@ namespace NiceHouse.Data
             // 注意：DontDestroyOnLoad 只能用于根 GameObject，如果挂载在子对象上会失败
         }
 
+        private void Start()
+        {
+            // 启动时清除所有告警记录（避免残留告警导致启动时闪烁）
+            if (clearAlarmsOnStart)
+            {
+                _records.Clear();
+                Debug.Log("[AlarmManager] Cleared all alarms on start");
+            }
+        }
+
         /// <summary>
         /// 添加告警记录。
         /// </summary>
         /// <param name="type">告警类型</param>
         /// <param name="roomId">房间ID</param>
-        public void AddAlarm(AlarmType type, string roomId)
+        /// <param name="personId">数字人ID（可选）</param>
+        public void AddAlarm(AlarmType type, string roomId, string personId = null)
         {
-            var record = new AlarmRecord(type, roomId);
+            var record = new AlarmRecord(type, roomId, personId);
             _records.Add(record);
 
             // 限制记录数量
@@ -89,7 +108,7 @@ namespace NiceHouse.Data
                 _records.RemoveAt(0);
             }
 
-            Debug.Log($"[Alarm] {type} in {roomId} at {record.time:HH:mm:ss}");
+            Debug.Log($"[Alarm] {type} in {roomId} at {record.time:HH:mm:ss} person={personId}");
 
             OnAlarmAdded?.Invoke(record);
         }

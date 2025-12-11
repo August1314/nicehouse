@@ -72,7 +72,7 @@ namespace NiceHouse.EnvironmentControl
         /// <summary>
         /// 设备是否开启
         /// </summary>
-        public bool IsOn => currentState == DeviceState.On || currentState == DeviceState.Running;
+        public virtual bool IsOn => currentState == DeviceState.On || currentState == DeviceState.Running;
 
         /// <summary>
         /// 当前设备状态

@@ -60,15 +60,21 @@ namespace NiceHouse.SmartMonitoring
             // 等待一帧，确保所有 Awake 和 Start 都已执行
             yield return null;
 
-            // 订阅状态变化事件
-            if (PersonStateController.Instance != null)
+            // 订阅多 Agent 事件
+            if (PersonStateManager.Instance != null)
             {
-                PersonStateController.Instance.OnStateChanged += OnPersonStateChanged;
-                Debug.Log("[MonitoringController] PersonStateController.Instance is ready");
+                PersonStateManager.Instance.OnAnyStateChanged += OnPersonStateChanged;
+                Debug.Log("[MonitoringController] PersonStateManager is ready");
+            }
+            else if (PersonStateController.Instance != null)
+            {
+                // 兼容旧单实例
+                PersonStateController.Instance.OnStateChanged += OnLegacyPersonStateChanged;
+                Debug.Log("[MonitoringController] Legacy PersonStateController is used (single agent)");
             }
             else
             {
-                Debug.LogError("[MonitoringController] PersonStateController.Instance is null after initialization!");
+                Debug.LogError("[MonitoringController] PersonStateManager/PersonStateController not found!");
             }
 
             // 订阅告警管理器事件
@@ -85,9 +91,13 @@ namespace NiceHouse.SmartMonitoring
 
         private void OnDestroy()
         {
+            if (PersonStateManager.Instance != null)
+            {
+                PersonStateManager.Instance.OnAnyStateChanged -= OnPersonStateChanged;
+            }
             if (PersonStateController.Instance != null)
             {
-                PersonStateController.Instance.OnStateChanged -= OnPersonStateChanged;
+                PersonStateController.Instance.OnStateChanged -= OnLegacyPersonStateChanged;
             }
 
             if (AlarmManager.Instance != null)
@@ -112,54 +122,89 @@ namespace NiceHouse.SmartMonitoring
         /// </summary>
         private void CheckPersonState()
         {
-            if (PersonStateController.Instance == null) return;
+            var agents = PersonStateManager.Instance != null
+                ? PersonStateManager.Instance.GetAllAgents()
+                : null;
 
-            var status = PersonStateController.Instance.Status;
-            if (status == null) return;
+            if (agents != null && agents.Count > 0)
+            {
+                foreach (var agent in agents)
+                {
+                    CheckPersonState(agent);
+                }
+            }
+            else if (PersonStateController.Instance != null)
+            {
+                CheckPersonState(PersonStateController.Instance);
+            }
+        }
 
-            // 检测久坐超时
+        /// <summary>
+        /// 检查单个 Agent 状态，检测异常。
+        /// </summary>
+        private void CheckPersonState(PersonStateController agent)
+        {
+            if (agent == null || agent.Status == null) return;
+
+            var status = agent.Status;
+
+            // 久坐
             if (status.state == PersonState.Sitting)
             {
                 float durationMinutes = status.stateDuration / 60f;
                 if (durationMinutes > longSittingThreshold)
                 {
-                    CheckAndTriggerAlarm(AlarmType.LongSitting, status.currentRoomId);
+                    CheckAndTriggerAlarm(agent, AlarmType.LongSitting, status.currentRoomId);
                 }
             }
 
-            // 检测久浴超时
+            // 久浴
             if (status.state == PersonState.Bathing)
             {
                 float durationMinutes = status.stateDuration / 60f;
                 if (durationMinutes > longBathingThreshold)
                 {
-                    CheckAndTriggerAlarm(AlarmType.LongBathing, status.currentRoomId);
+                    CheckAndTriggerAlarm(agent, AlarmType.LongBathing, status.currentRoomId);
                 }
             }
         }
 
         /// <summary>
-        /// 数字人状态变化事件处理
+        /// 多 Agent 事件处理
         /// </summary>
-        private void OnPersonStateChanged(PersonState newState, string roomId)
+        private void OnPersonStateChanged(PersonStateController agent, PersonState newState, string roomId)
         {
-            // 检测跌倒
+            if (agent == null) return;
+            HandleStateChange(agent, newState, roomId);
+        }
+
+        /// <summary>
+        /// 兼容旧单实例事件
+        /// </summary>
+        private void OnLegacyPersonStateChanged(PersonState newState, string roomId)
+        {
+            HandleStateChange(PersonStateController.Instance, newState, roomId);
+        }
+
+        private void HandleStateChange(PersonStateController agent, PersonState newState, string roomId)
+        {
+            // 跌倒
             if (newState == PersonState.Fallen)
             {
-                CheckAndTriggerAlarm(AlarmType.Fall, roomId);
+                CheckAndTriggerAlarm(agent, AlarmType.Fall, roomId);
             }
 
-            // 检测坠床
+            // 坠床
             if (newState == PersonState.OutOfBed)
             {
-                CheckAndTriggerAlarm(AlarmType.Fall, roomId);
+                CheckAndTriggerAlarm(agent, AlarmType.Fall, roomId);
             }
         }
 
         /// <summary>
         /// 检查并触发告警（带去重逻辑）
         /// </summary>
-        private void CheckAndTriggerAlarm(AlarmType type, string roomId)
+        private void CheckAndTriggerAlarm(PersonStateController agent, AlarmType type, string roomId)
         {
             // 测试模式下跳过冷却时间检查
             if (!testMode)
@@ -182,11 +227,12 @@ namespace NiceHouse.SmartMonitoring
             // 触发告警
             if (AlarmManager.Instance != null)
             {
-                AlarmManager.Instance.AddAlarm(type, roomId);
+                var personId = agent != null ? agent.PersonId : null;
+                AlarmManager.Instance.AddAlarm(type, roomId, personId);
                 _lastAlarmTime[type] = Time.time;
                 _lastAlarmRoom[type] = roomId;
 
-                Debug.Log($"[MonitoringController] Alarm triggered: {type} in {roomId}");
+                Debug.Log($"[MonitoringController] Alarm triggered: {type} in {roomId} (person={personId})");
             }
             else
             {
@@ -212,7 +258,20 @@ namespace NiceHouse.SmartMonitoring
         /// </summary>
         public void TriggerAlarmManually(AlarmType type, string roomId)
         {
-            CheckAndTriggerAlarm(type, roomId);
+            var agent = PersonStateManager.Instance != null ? PersonStateManager.Instance.DefaultAgent : PersonStateController.Instance;
+            CheckAndTriggerAlarm(agent, type, roomId);
+        }
+
+        /// <summary>
+        /// 兼容旧接口（不传 Agent）
+        /// </summary>
+        public void TriggerAlarmManually(AlarmType type)
+        {
+            var agent = PersonStateManager.Instance != null ? PersonStateManager.Instance.DefaultAgent : PersonStateController.Instance;
+            var roomId = agent != null && agent.Status != null && !string.IsNullOrEmpty(agent.Status.currentRoomId)
+                ? agent.Status.currentRoomId
+                : "Unknown";
+            CheckAndTriggerAlarm(agent, type, roomId);
         }
 
         /// <summary>
@@ -225,4 +284,5 @@ namespace NiceHouse.SmartMonitoring
         }
     }
 }
+
 
