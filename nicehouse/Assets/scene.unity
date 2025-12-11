@@ -574,7 +574,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   roomId: Kitchen01
   roomType: 2
-  displayName: "\u53A8\u623F"
+  displayName: Kitchen
   roomVolume: {fileID: 1584613203}
 --- !u!1 &30942337 stripped
 GameObject:
@@ -728,7 +728,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 32995188}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3c81da303bb664db5951913447785999, type: 3}
   m_Name: 
@@ -737,7 +737,14 @@ MonoBehaviour:
   simulateHumidity: 1
   simulatePm25: 1
   updateInterval: 0.001
-  roomConfigs: []
+  roomConfigs:
+  - roomId: 
+    baseTemperature: 0
+    temperatureAmplitude: 0
+    baseHumidity: 0
+    humidityAmplitude: 0
+    basePm25: 0
+    pm25Amplitude: 0
 --- !u!4 &32995190
 Transform:
   m_ObjectHideFlags: 0
@@ -8680,6 +8687,9 @@ PrefabInstance:
       addedObject: {fileID: 621949354}
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 1119822712}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 1094070792}
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
       insertIndex: -1
@@ -8696,9 +8706,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2107753969}
-    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1119822712}
     - targetCorrespondingSourceObject: {fileID: -7498030200703080790, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1799560219}
@@ -13014,37 +13021,19 @@ PrefabInstance:
       addedObject: {fileID: 621949360}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 621949359}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 621949358}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 621949357}
+      addedObject: {fileID: 621949363}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 621949364}
   m_SourcePrefab: {fileID: 100100000, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
 --- !u!4 &621949354 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
   m_PrefabInstance: {fileID: 621949353}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &621949357
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 265863258}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c9f4b86662c7cf84cb455cc5da22eaf9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lightController: {fileID: 0}
-  interactionDistance: 0
-  turnOffHint: "\u5173\u706F"
-  turnOnHint: "\u5F00\u706F"
-  highlightColor: {r: 1, g: 1, b: 0.5, a: 1}
-  enableHighlight: 1
 --- !u!65 &621949358
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -13066,26 +13055,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0038117399, y: 0.0038117392, z: 0.0015555997}
   m_Center: {x: 0, y: 0, z: -0.00077779987}
---- !u!114 &621949359
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 265863258}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 79c6f554e5a5a41459e42ce6ad31adc8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetLight: {fileID: 1032419843}
-  onIntensity: 1
-  offIntensity: 0
-  emissiveRenderer: {fileID: 0}
-  emissionColorProperty: _EmissionColor
-  emissionOnColor: {r: 2, g: 2, b: 2, a: 2}
-  emissionOffColor: {r: 0, g: 0, b: 0, a: 1}
-  isLightOn: 0
 --- !u!114 &621949360
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13101,6 +13070,40 @@ MonoBehaviour:
   deviceId: SmokeSensor02
   type: 6
   roomId: BedRoom01
+--- !u!114 &621949363
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265863258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 030e23fa1c9b0405ea97381c9234ed1f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetAlarmLight: {fileID: 0}
+  autoFindGlobalAlarmLight: 1
+  triggerSmokeAlarm: 1
+  roomId: 
+  interactionDistance: 0
+  clickHint: "\u89E6\u53D1\u70DF\u96FE\u62A5\u8B66"
+  highlightColor: {r: 1, g: 0.8, b: 0.5, a: 1}
+  enableHighlight: 1
+--- !u!114 &621949364
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265863258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31545c1e06c2042ca96e9869ee5bea3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  interactableSmokeDetector: {fileID: 621949363}
+  targetAlarmLight: {fileID: 0}
 --- !u!1 &622713425
 GameObject:
   m_ObjectHideFlags: 0
@@ -18198,13 +18201,13 @@ PrefabInstance:
       addedObject: {fileID: 1911102404}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1911102403}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 1911102402}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1911102401}
+      addedObject: {fileID: 1911102407}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1911102408}
   m_SourcePrefab: {fileID: 100100000, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
 --- !u!4 &817531963 stripped
 Transform:
@@ -21676,6 +21679,15 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5ef4ac0f6518fc048b0f8cfb6cac7f2a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1032419848}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5ef4ac0f6518fc048b0f8cfb6cac7f2a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1032419851}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5ef4ac0f6518fc048b0f8cfb6cac7f2a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1032419850}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5ef4ac0f6518fc048b0f8cfb6cac7f2a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1032419854}
   m_SourcePrefab: {fileID: 100100000, guid: 5ef4ac0f6518fc048b0f8cfb6cac7f2a, type: 3}
 --- !u!1 &1032419841 stripped
 GameObject:
@@ -21763,8 +21775,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   minIntensity: 0.5
   maxIntensity: 3
-  speed: 5
   flashRate: 0.2
+  checkAlarmStatus: 1
+  isGlobalAlarmLight: 1
+  roomId: 
+  enableManualTrigger: 1
+  manualFlashDuration: 5
+  startDelay: 1
 --- !u!114 &1032419847
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21797,6 +21814,7 @@ MonoBehaviour:
   targetLight: {fileID: 1032419843}
   intensityThreshold: 0.05
   followLight: 1
+  startDelay: 1
 --- !u!82 &1032419849
 AudioSource:
   m_ObjectHideFlags: 0
@@ -21893,6 +21911,58 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &1032419850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1032419841}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73764a4c9628e46399cedc4ed40137fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  flashingLight: {fileID: 0}
+  interactionDistance: 0
+  flashHint: Alarm start
+  stopFlashHint: Alarm stop
+  highlightColor: {r: 1, g: 0.5, b: 0.5, a: 1}
+  enableHighlight: 1
+--- !u!65 &1032419851
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1032419841}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.031452823, y: 0.019999998, z: 0.039146375}
+  m_Center: {x: -0.015792979, y: -0.0000000018626451, z: -0.009573189}
+--- !u!114 &1032419854
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1032419841}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c20a8c718612d421f8a28161e6cf2f56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  flashingLight: {fileID: 1032419844}
 --- !u!1 &1039189718
 GameObject:
   m_ObjectHideFlags: 0
@@ -26777,21 +26847,6 @@ MonoBehaviour:
   useEmission: 1
   emissionIntensity: 1.2
   pressedHoldSeconds: 5
---- !u!114 &1367008581
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1367008576}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f1d74dc0b29384db596af7b48b097594, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  roomId: LivingRoom01
-  useDashboardRoom: 1
-  dashboard: {fileID: 284839475}
 --- !u!65 &1367008582
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -26813,6 +26868,55 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0036993006, y: 0.012451649, z: 0.0124516655}
   m_Center: {x: 0.000780233, y: 0.0000000048894435, z: -0.0000000023283069}
+--- !u!114 &1367008588
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1367008576}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bedf72717251e4de3b076474eec3aea0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  deviceId: HelpButton
+  type: 8
+  roomId: Kitchen01
+--- !u!114 &1367008589
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1367008576}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 81722b28a2785463c91f17bf9100f0b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetAlarmLight: {fileID: 0}
+  autoFindGlobalAlarmLight: 1
+  triggerEmergencyAlarm: 1
+  roomId: 
+  interactionDistance: 0
+  clickHint: "\u89E6\u53D1\u7D27\u6025\u547C\u53EB"
+  highlightColor: {r: 1, g: 0.5, b: 0.5, a: 1}
+  enableHighlight: 1
+--- !u!114 &1367008590
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1367008576}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c083949ecb74405915b360dbace0fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  interactableHelpButton: {fileID: 1367008589}
+  targetAlarmLight: {fileID: 0}
 --- !u!1 &1372890426
 GameObject:
   m_ObjectHideFlags: 0
@@ -27366,7 +27470,7 @@ Transform:
   m_GameObject: {fileID: 1409500032}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.6828052, z: -0, w: -0.7306006}
-  m_LocalPosition: {x: 5.6705, y: 0.9703, z: 2.592}
+  m_LocalPosition: {x: 5.6705, y: 0.085, z: 2.592}
   m_LocalScale: {x: 0.15534744, y: 0.7366889, z: 0.08402155}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -28842,6 +28946,7 @@ MonoBehaviour:
   flashInterval: 0.5
   flashDuration: 0
   showConsoleMessage: 1
+  stopAllFlashOnStart: 1
 --- !u!4 &1502248881
 Transform:
   m_ObjectHideFlags: 0
@@ -32042,6 +32147,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxRecords: 100
   dontDestroyOnLoad: 1
+  clearAlarmsOnStart: 1
 --- !u!1 &1732079449 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -3497064331218490051, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
@@ -34211,7 +34317,7 @@ MonoBehaviour:
   thresholds: {fileID: 11400000, guid: 7280bf15385b1481cade54818913437f, type: 2}
   checkInterval: 1
   autoMode: 1
-  enableDebugLog: 1
+  enableDebugLog: 0
 --- !u!4 &1819336790
 Transform:
   m_ObjectHideFlags: 0
@@ -36100,24 +36206,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 3642855a35b5be04583ea470eca336f3, type: 3}
   m_PrefabInstance: {fileID: 817531962}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1911102401
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1911102398}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c9f4b86662c7cf84cb455cc5da22eaf9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lightController: {fileID: 0}
-  interactionDistance: 0
-  turnOffHint: "\u5173\u706F"
-  turnOnHint: "\u5F00\u706F"
-  highlightColor: {r: 1, g: 1, b: 0.5, a: 1}
-  enableHighlight: 1
 --- !u!65 &1911102402
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -36139,26 +36227,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.0038117399, y: 0.0038117392, z: 0.0015555997}
   m_Center: {x: 0, y: 0, z: -0.00077779987}
---- !u!114 &1911102403
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1911102398}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 79c6f554e5a5a41459e42ce6ad31adc8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetLight: {fileID: 1032419843}
-  onIntensity: 1
-  offIntensity: 0
-  emissiveRenderer: {fileID: 0}
-  emissionColorProperty: _EmissionColor
-  emissionOnColor: {r: 2, g: 2, b: 2, a: 2}
-  emissionOffColor: {r: 0, g: 0, b: 0, a: 1}
-  isLightOn: 0
 --- !u!114 &1911102404
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -36174,6 +36242,40 @@ MonoBehaviour:
   deviceId: SmokeSensor01
   type: 6
   roomId: Study
+--- !u!114 &1911102407
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1911102398}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 030e23fa1c9b0405ea97381c9234ed1f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetAlarmLight: {fileID: 0}
+  autoFindGlobalAlarmLight: 1
+  triggerSmokeAlarm: 1
+  roomId: 
+  interactionDistance: 0
+  clickHint: "\u89E6\u53D1\u70DF\u96FE\u62A5\u8B66"
+  highlightColor: {r: 1, g: 0.8, b: 0.5, a: 1}
+  enableHighlight: 1
+--- !u!114 &1911102408
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1911102398}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31545c1e06c2042ca96e9869ee5bea3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  interactableSmokeDetector: {fileID: 1911102407}
+  targetAlarmLight: {fileID: 0}
 --- !u!1 &1913169956 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8386009582420158719, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
@@ -38090,7 +38192,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalScale.x
-      value: 3.0271964
+      value: 3.027197
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalScale.y
@@ -38098,7 +38200,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalScale.z
-      value: 3.0271964
+      value: 3.027197
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalPosition.x
@@ -38110,7 +38212,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.807
+      value: -0.8069999
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalRotation.w
@@ -38118,7 +38220,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalRotation.y
@@ -38126,7 +38228,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -38163,7 +38265,13 @@ PrefabInstance:
       addedObject: {fileID: 1367008582}
     - targetCorrespondingSourceObject: {fileID: -4488687577137928959, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1367008581}
+      addedObject: {fileID: 1367008588}
+    - targetCorrespondingSourceObject: {fileID: -4488687577137928959, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1367008590}
+    - targetCorrespondingSourceObject: {fileID: -4488687577137928959, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1367008589}
   m_SourcePrefab: {fileID: 100100000, guid: a29f973eae16e4aeba8ab8c7d629010b, type: 3}
 --- !u!4 &2084309978 stripped
 Transform:
