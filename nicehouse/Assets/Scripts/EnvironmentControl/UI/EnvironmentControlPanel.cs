@@ -656,6 +656,16 @@ namespace NiceHouse.EnvironmentControl
                         case NiceHouse.Data.DeviceType.FreshAirSystem:
                             controller = device.GetComponent<FreshAirController>();
                             break;
+                        case NiceHouse.Data.DeviceType.Window:
+                    controller = device.GetComponent<WindowController>()
+                                 ?? device.GetComponentInChildren<WindowController>(includeInactive: true)
+                                 ?? device.GetComponentInParent<WindowController>();
+                            break;
+                        case NiceHouse.Data.DeviceType.Curtain:
+                    controller = device.GetComponent<CurtainController>()
+                                 ?? device.GetComponentInChildren<CurtainController>(includeInactive: true)
+                                 ?? device.GetComponentInParent<CurtainController>();
+                            break;
                         case NiceHouse.Data.DeviceType.Light:
                             // 优先查找 AlarmLightController，如果没有则查找 LightController
                             controller = device.GetComponent<AlarmLightController>();

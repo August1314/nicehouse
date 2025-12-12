@@ -136,6 +136,10 @@ namespace NiceHouse.EnvironmentControl
             {
                 AlarmManager.Instance.AddAlarm(AlarmType.Smoke, targetRoomId);
             }
+
+            // 兜底触发自动开窗（若 AlarmResponseHelper 订阅晚于告警产生）
+            NiceHouse.SmartMonitoring.AlarmResponseHelper.TryAutoOpenWindows(AlarmType.Smoke, targetRoomId);
+            Debug.Log($"[SmokeDetectorController] Triggered smoke alarm in {targetRoomId}, requesting auto-open windows");
         }
 
         /// <summary>

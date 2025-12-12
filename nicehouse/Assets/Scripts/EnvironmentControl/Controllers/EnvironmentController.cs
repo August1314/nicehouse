@@ -22,6 +22,16 @@ namespace NiceHouse.EnvironmentControl
         
         [Tooltip("自动模式（开启后会自动联动设备）")]
         public bool autoMode = true;
+
+        [Header("空气净化效果")]
+        [Tooltip("单台净化器的PM2.5净化速率（μg/m³ 每分钟）")]
+        public float pm25CleanRatePerMinute = 480f;
+        
+        [Tooltip("净化后的最低PM2.5值（避免降到0以下）")]
+        public float pm25Floor = 5f;
+
+        [Tooltip("单扇开启窗户的PM2.5换气净化速率（μg/m³ 每分钟）")]
+        public float pm25VentRatePerWindowPerMinute = 20f;
         
         [Header("调试")]
         [Tooltip("是否输出调试日志")]
@@ -148,6 +158,8 @@ namespace NiceHouse.EnvironmentControl
             {
                 TriggerHumidityControl(roomId);
             }
+
+            ApplyAirPurifierEffect(roomId, env);
         }
 
         /// <summary>
@@ -203,6 +215,57 @@ namespace NiceHouse.EnvironmentControl
                     AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId);
                 }
             }
+        }
+
+        /// <summary>
+        /// 当房间存在运行中的净化器/开启窗户时，对PM2.5施加衰减模型
+        /// </summary>
+        private void ApplyAirPurifierEffect(string roomId, RoomEnvironmentData env)
+        {
+            if (DeviceManager.Instance == null || env == null)
+            {
+                return;
+            }
+
+            var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
+            int activePurifierCount = 0;
+            int openWindowCount = 0;
+
+            foreach (var device in devices)
+            {
+                if (device.type == NiceHouse.Data.DeviceType.AirPurifier)
+                {
+                    var controller = device.GetComponent<AirPurifierController>();
+                    if (controller != null && controller.IsOn)
+                    {
+                        activePurifierCount++;
+                    }
+                }
+                else if (device.type == NiceHouse.Data.DeviceType.Window)
+                {
+                    var window = device.GetComponent<WindowController>();
+                    if (window != null && window.IsOn)
+                    {
+                        openWindowCount++;
+                    }
+                }
+            }
+
+            if (activePurifierCount == 0 && openWindowCount == 0)
+            {
+                return;
+            }
+
+            // 线性衰减模型：净化器 + 开窗通风叠加
+            float purifierRatePerSecond = pm25CleanRatePerMinute / 60f;
+            float ventRatePerSecond = pm25VentRatePerWindowPerMinute / 60f;
+
+            float delta = (purifierRatePerSecond * activePurifierCount +
+                           ventRatePerSecond * openWindowCount) * checkInterval;
+
+            env.pm25 = Mathf.Max(pm25Floor, env.pm25 - delta);
+            // 简单保持 PM10 与 PM2.5 的比例
+            env.pm10 = env.pm25 * 1.2f;
         }
 
         /// <summary>
@@ -360,6 +423,16 @@ namespace NiceHouse.EnvironmentControl
                             break;
                         case NiceHouse.Data.DeviceType.FreshAirSystem:
                             controller = device.GetComponent<FreshAirController>();
+                            break;
+                        case NiceHouse.Data.DeviceType.Window:
+                            controller = device.GetComponent<WindowController>() 
+                                         ?? device.GetComponentInChildren<WindowController>(includeInactive: true)
+                                         ?? device.GetComponentInParent<WindowController>();
+                            break;
+                        case NiceHouse.Data.DeviceType.Curtain:
+                            controller = device.GetComponent<CurtainController>()
+                                         ?? device.GetComponentInChildren<CurtainController>(includeInactive: true)
+                                         ?? device.GetComponentInParent<CurtainController>();
                             break;
                         case NiceHouse.Data.DeviceType.Light:
                             // 优先查找 AlarmLightController，如果没有则查找 LightController
