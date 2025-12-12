@@ -8,10 +8,10 @@ namespace NiceHouse.Data
     /// </summary>
     public class RoomEnvironmentData
     {
-        public float temperature;
-        public float humidity;
-        public float pm25;
-        public float pm10;
+        public float temperature = 24f;  // 默认温度24°C
+        public float humidity = 50f;     // 默认湿度50%
+        public float pm25 = 35f;         // 默认PM2.5 35μg/m³
+        public float pm10 = 42f;         // 默认PM10 42μg/m³ (PM2.5的1.2倍)
     }
 
     /// <summary>
