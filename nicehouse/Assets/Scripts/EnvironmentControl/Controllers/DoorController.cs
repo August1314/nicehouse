@@ -19,6 +19,24 @@ namespace NiceHouse.Interaction
 
         private Coroutine _rotationCoroutine;
 
+        private void Start()
+        {
+            // 根据门的初始角度初始化状态
+            InitializeDoorState();
+        }
+
+        private void InitializeDoorState()
+        {
+            float currentAngle = transform.rotation.eulerAngles.y;
+            
+            // 计算当前角度与打开角度、关闭角度的距离
+            float distToOpen = Mathf.Abs(Mathf.DeltaAngle(currentAngle, openAngle));
+            float distToClose = Mathf.Abs(Mathf.DeltaAngle(currentAngle, closeAngle));
+            
+            // 根据哪个更近来判断初始状态
+            IsDoorOpen = distToOpen < distToClose;
+        }
+
         public void Toggle()
         {
             IsDoorOpen = !IsDoorOpen;
@@ -34,14 +52,27 @@ namespace NiceHouse.Interaction
         private IEnumerator RotateDoor(float targetAngle)
         {
             Quaternion startRotation = transform.rotation;
-            Quaternion endRotation = Quaternion.Euler(transform.rotation.eulerAngles.x, targetAngle, transform.rotation.eulerAngles.z);
+            float startAngle = startRotation.eulerAngles.y;
+            
+            // 处理角度跨越 0/360 度边界的问题，选择最短路径
+            float angleDiff = Mathf.DeltaAngle(startAngle, targetAngle);
+            float actualTargetAngle = startAngle + angleDiff;
+            
+            Quaternion endRotation = Quaternion.Euler(
+                transform.rotation.eulerAngles.x, 
+                actualTargetAngle, 
+                transform.rotation.eulerAngles.z
+            );
 
             float elapsedTime = 0f;
-            float duration = 1f / rotationSpeed; // 旋转时间由 rotationSpeed 控制
+            // 防止 rotationSpeed 为 0 或负数导致问题
+            float safeSpeed = Mathf.Max(rotationSpeed, 0.0001f);
+            float duration = 1f / safeSpeed; // 旋转时间由 rotationSpeed 控制
 
             while (elapsedTime < duration)
             {
-                transform.rotation = Quaternion.Slerp(startRotation, endRotation, elapsedTime / duration);
+                float t = elapsedTime / duration;
+                transform.rotation = Quaternion.Slerp(startRotation, endRotation, t);
                 elapsedTime += Time.deltaTime;
                 yield return null;
             }
