@@ -146,18 +146,51 @@ namespace NiceHouse.SmartMonitoring
         {
             if (AlarmManager.Instance == null || alarmListContent == null) return;
 
-            // 清除旧列表项
+            // 清除旧列表项（先禁用，再销毁，避免UI更新时的闪烁）
+            List<GameObject> childrenToDestroy = new List<GameObject>();
             foreach (Transform child in alarmListContent)
             {
-                Destroy(child.gameObject);
+                childrenToDestroy.Add(child.gameObject);
+            }
+            
+            // 先禁用所有旧项，避免点击冲突
+            foreach (var child in childrenToDestroy)
+            {
+                if (child != null)
+                {
+                    child.SetActive(false);
+                }
+            }
+            
+            // 然后销毁
+            foreach (var child in childrenToDestroy)
+            {
+                if (child != null)
+                {
+                    Destroy(child);
+                }
             }
 
-            // 获取最近10条告警
-            var alarms = AlarmManager.Instance.GetRecentAlarms(10);
+            // 只获取未处理的告警（已处理的告警应该从列表中移除）
+            var alarms = AlarmManager.Instance.GetUnhandledAlarms();
 
-            foreach (var alarm in alarms)
+            // 确保告警按时间倒序排列（最新的在前），并限制数量
+            var sortedAlarms = alarms.OrderByDescending(a => a.time).Take(10).ToList();
+
+            foreach (var alarm in sortedAlarms)
             {
                 CreateAlarmItem(alarm);
+            }
+            
+            // 强制刷新布局（确保 VerticalLayoutGroup 正确排列）
+            if (alarmListContent != null)
+            {
+                var layoutGroup = alarmListContent.GetComponent<UnityEngine.UI.LayoutGroup>();
+                var rectTransform = alarmListContent.GetComponent<RectTransform>();
+                if (layoutGroup != null && rectTransform != null)
+                {
+                    UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(rectTransform);
+                }
             }
         }
 
@@ -169,6 +202,21 @@ namespace NiceHouse.SmartMonitoring
             if (alarmItemPrefab == null) return;
 
             GameObject item = Instantiate(alarmItemPrefab, alarmListContent);
+            
+            // 为告警项添加唯一标识（用于调试和追踪）
+            item.name = $"AlarmItem_{alarm.type}_{alarm.time:HHmmss}";
+            
+            // 确保告警项有正确的 RectTransform 设置
+            RectTransform itemRect = item.GetComponent<RectTransform>();
+            if (itemRect != null)
+            {
+                // 确保锚点设置为顶部拉伸
+                itemRect.anchorMin = new Vector2(0, 1);
+                itemRect.anchorMax = new Vector2(1, 1);
+                itemRect.pivot = new Vector2(0.5f, 1);
+                // 不设置 sizeDelta，让 LayoutGroup 控制
+                itemRect.anchoredPosition = Vector2.zero;
+            }
             
             // 查找文本组件并设置内容
             TextMeshProUGUI[] texts = item.GetComponentsInChildren<TextMeshProUGUI>();
@@ -199,15 +247,53 @@ namespace NiceHouse.SmartMonitoring
                 }
             }
 
-            // 查找"已处理"按钮
-            Button handleButton = item.GetComponentInChildren<Button>();
-            if (handleButton != null && !alarm.handled)
+            // 查找所有按钮，优先查找名为 "Handle" 或包含 "handle" 的按钮
+            Button[] allButtons = item.GetComponentsInChildren<Button>();
+            Button handleButton = null;
+            
+            // 优先查找名为 "Handle" 的按钮
+            foreach (var btn in allButtons)
             {
-                handleButton.onClick.AddListener(() => MarkAlarmHandled(alarm));
+                string btnName = btn.gameObject.name.ToLower();
+                if (btnName.Contains("handle"))
+                {
+                    handleButton = btn;
+                    break;
+                }
             }
-            else if (handleButton != null && alarm.handled)
+            
+            // 如果没找到，使用第一个按钮
+            if (handleButton == null && allButtons.Length > 0)
             {
-                handleButton.interactable = false;
+                handleButton = allButtons[0];
+            }
+
+            if (handleButton != null)
+            {
+                // 清除所有旧的监听器（避免重复添加）
+                handleButton.onClick.RemoveAllListeners();
+                
+                if (!alarm.handled)
+                {
+                    // 创建告警记录的副本，避免闭包问题
+                    AlarmRecord alarmCopy = alarm;
+                    handleButton.onClick.AddListener(() => 
+                    {
+                        Debug.Log($"[MonitoringPanel] Handle button clicked for alarm: {alarmCopy.type} in {alarmCopy.roomId} at {alarmCopy.time}");
+                        MarkAlarmHandled(alarmCopy);
+                    });
+                    handleButton.interactable = true;
+                }
+                else
+                {
+                    handleButton.interactable = false;
+                    // 可以隐藏按钮或改变文本
+                    var buttonText = handleButton.GetComponentInChildren<TextMeshProUGUI>();
+                    if (buttonText != null)
+                    {
+                        buttonText.text = "Handled";
+                    }
+                }
             }
         }
 
@@ -433,6 +519,8 @@ namespace NiceHouse.SmartMonitoring
             if (AlarmManager.Instance != null)
             {
                 AlarmManager.Instance.MarkHandled(record);
+                Debug.Log($"[MonitoringPanel] Marked alarm as handled: {record.type} in {record.roomId} at {record.time}");
+                // 立即更新列表，已处理的告警会从列表中消失（因为现在只显示未处理的告警）
                 UpdateAlarmList();
             }
         }
