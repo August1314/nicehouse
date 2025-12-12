@@ -5440,14 +5440,14 @@ MonoBehaviour:
   renderTextureWidth: 512
   renderTextureHeight: 512
   enableMSAA: 1
-  enableViewportCrop: 1
-  cropX: 0
-  cropY: 0
-  cropWidth: 1
-  cropHeight: 1
+  enableViewportCrop: 0
+  cropX: 0.5003014
+  cropY: 0.9468504
+  cropWidth: 0.5877003
+  cropHeight: 0.2725024
   panelMaterial: {fileID: 2100000, guid: 78a2daf8d7b57402b9f5c7172a352848, type: 2}
   autoFindCamera: 1
-  enableInteraction: 1
+  enableInteraction: 0
   interactionDistance: 10
   playerTag: Player
 --- !u!64 &264851311
@@ -26930,7 +26930,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1517806327}
   - component: {fileID: 1517806326}
-  - component: {fileID: 1517806328}
   m_Layer: 0
   m_Name: TopViewCamera
   m_TagString: Untagged
@@ -27004,27 +27003,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
---- !u!114 &1517806328
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1517806324}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9f8dea5dea86147de93aeaf1d1165bf9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  enableCrop: 1
-  cropX: 0
-  cropY: 0
-  cropWidth: 0.29
-  cropHeight: 0.18
-  orthographicSize: 13
-  positionX: -3.98
-  positionY: 35.42
-  positionZ: 3.6
 --- !u!1 &1526856511
 GameObject:
   m_ObjectHideFlags: 0
