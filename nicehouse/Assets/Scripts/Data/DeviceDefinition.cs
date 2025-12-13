@@ -10,6 +10,7 @@ namespace NiceHouse.Data
         Fan,
         Light,
         Window,
+        Curtain,
         SmokeSensor,
         Pm25Sensor,
         HelpButton,

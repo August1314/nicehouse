@@ -63,6 +63,7 @@ namespace NiceHouse.EnvironmentControl
         /// <summary>
         /// 初始化所有房间的温度（如果未初始化）
         /// 从 EnvironmentDataSimulator 的配置中读取每个房间的基础温度
+        /// 即使simulator关闭，也会使用配置的基础温度来初始化
         /// </summary>
         private void InitializeTemperatures()
         {
@@ -71,7 +72,7 @@ namespace NiceHouse.EnvironmentControl
                 return;
             }
 
-            // 尝试从 EnvironmentDataSimulator 获取房间配置
+            // 尝试从 EnvironmentDataSimulator 获取房间配置（即使simulator被禁用）
             var simulator = FindObjectOfType<EnvironmentDataSimulator>();
             Dictionary<string, float> roomBaseTemperatures = new Dictionary<string, float>();
 
@@ -91,14 +92,24 @@ namespace NiceHouse.EnvironmentControl
             {
                 var data = EnvironmentDataStore.Instance.GetOrCreateRoomData(room.roomId);
                 
-                // 如果温度接近 0（未初始化），设置初始温度
-                if (Mathf.Abs(data.temperature) < 0.1f)
+                // 检查是否需要初始化：
+                // 1. 温度接近0（未初始化）
+                // 2. 或者温度等于默认值24°C（可能是EnvironmentDataStore的默认值，需要根据房间类型设置不同值）
+                bool needsInitialization = Mathf.Abs(data.temperature) < 0.1f || 
+                                          Mathf.Abs(data.temperature - 24f) < 0.1f;
+                
+                if (needsInitialization)
                 {
                     // 优先使用 EnvironmentDataSimulator 配置的基础温度
                     float initTemp = initialTemperature;
                     if (roomBaseTemperatures.TryGetValue(room.roomId, out float baseTemp))
                     {
                         initTemp = baseTemp;
+                    }
+                    else
+                    {
+                        // 如果没有找到配置，根据房间类型设置不同的默认温度
+                        initTemp = GetDefaultTemperatureByRoomType(room.roomType);
                     }
                     
                     data.temperature = initTemp;
@@ -107,12 +118,30 @@ namespace NiceHouse.EnvironmentControl
                     if (enableDebugLog)
                     {
                         Debug.Log($"[TemperatureInfluence] Initialized {room.roomId} temperature to {initTemp}°C " +
-                                 (roomBaseTemperatures.ContainsKey(room.roomId) ? "(from simulator config)" : "(default)"));
+                                 (roomBaseTemperatures.ContainsKey(room.roomId) ? "(from simulator config)" : 
+                                  $"(from room type: {room.roomType})"));
                     }
                 }
             }
 
             _initialized = true;
+        }
+
+        /// <summary>
+        /// 根据房间类型返回默认温度
+        /// </summary>
+        private float GetDefaultTemperatureByRoomType(RoomType roomType)
+        {
+            return roomType switch
+            {
+                RoomType.LivingRoom => 25f,
+                RoomType.Kitchen => 26.5f,
+                RoomType.Study => 24f,
+                RoomType.Bathroom => 23f,
+                RoomType.Bedroom => 22f,
+                RoomType.Corridor => 23.5f,
+                _ => initialTemperature
+            };
         }
 
         private void Update()

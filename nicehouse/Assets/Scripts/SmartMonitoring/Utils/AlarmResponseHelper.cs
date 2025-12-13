@@ -48,6 +48,7 @@ namespace NiceHouse.SmartMonitoring
         private Dictionary<string, List<Light>> _roomLights = new Dictionary<string, List<Light>>();
         private Coroutine _globalAlarmLightCoroutine;
         private List<Light> _globalAlarmLights;
+        private readonly HashSet<string> _alarmOpenedWindows = new HashSet<string>();
 
         [Header("启动设置")]
         [Tooltip("启动时停止所有灯光闪烁（避免残留告警导致启动时闪烁）")]
@@ -62,6 +63,12 @@ namespace NiceHouse.SmartMonitoring
             }
 
             Instance = this;
+
+            // 订阅告警事件（在 Awake 先订阅，避免 Start 前触发的告警漏掉）
+            if (AlarmManager.Instance != null)
+            {
+                AlarmManager.Instance.OnAlarmAdded += OnAlarmAddedHandler;
+            }
 
             // 如果没有指定AudioSource，尝试获取或创建
             if (audioSource == null)
@@ -80,6 +87,22 @@ namespace NiceHouse.SmartMonitoring
             if (stopAllFlashOnStart)
             {
                 StopAllLightFlash();
+            }
+
+            // 订阅告警事件
+            if (AlarmManager.Instance != null)
+            {
+                // 避免重复订阅
+                AlarmManager.Instance.OnAlarmAdded -= OnAlarmAddedHandler;
+                AlarmManager.Instance.OnAlarmAdded += OnAlarmAddedHandler;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (AlarmManager.Instance != null)
+            {
+                AlarmManager.Instance.OnAlarmAdded -= OnAlarmAddedHandler;
             }
         }
 
@@ -107,6 +130,18 @@ namespace NiceHouse.SmartMonitoring
                 string message = GetAlarmMessage(type, roomId);
                 Debug.Log($"[AlarmResponse] {message}"); // 使用 Log 而不是 LogWarning，因为这是正常的告警信息
             }
+
+            // 告警联动：烟雾/燃气 → 自动开窗
+            HandleWindowAutoOpen(type, roomId);
+        }
+
+        /// <summary>
+        /// 告警事件回调：用于触发 RespondToAlarm
+        /// </summary>
+        private void OnAlarmAddedHandler(AlarmRecord record)
+        {
+            if (record == null) return;
+            RespondToAlarm(record.type, record.roomId);
         }
 
         /// <summary>
@@ -363,6 +398,119 @@ namespace NiceHouse.SmartMonitoring
         }
 
         /// <summary>
+        /// 当房间出现烟雾/燃气告警时自动打开窗户
+        /// </summary>
+        /// <summary>
+        /// 当出现需通风的告警时自动打开窗户（可静态调用兜底，跨房间）
+        /// </summary>
+        public static void TryAutoOpenWindows(AlarmType type, string roomId)
+        {
+            if (Instance != null)
+            {
+                Instance.HandleWindowAutoOpen(type, roomId);
+            }
+        }
+
+        /// <summary>
+        /// 当出现需通风的告警时自动打开窗户（遍历全局所有窗户）
+        /// </summary>
+        public void HandleWindowAutoOpen(AlarmType type, string roomId)
+        {
+            // 这里拓展为烟雾、燃气、紧急呼叫都尝试开窗
+            if (type != AlarmType.Smoke && type != AlarmType.GasLeak && type != AlarmType.EmergencyCall)
+            {
+                return;
+            }
+
+            if (DeviceManager.Instance == null)
+            {
+                return;
+            }
+
+            var devices = DeviceManager.Instance.GetAllDevices().Values;
+            bool openedAny = false;
+            int candidateCount = 0;
+            foreach (var device in devices)
+            {
+                if (device.type == NiceHouse.Data.DeviceType.Window)
+                {
+                    candidateCount++;
+                    // 兼容挂在子物体/父物体的控制器
+                    var window = device.GetComponent<NiceHouse.EnvironmentControl.WindowController>()
+                                 ?? device.GetComponentInChildren<NiceHouse.EnvironmentControl.WindowController>(includeInactive: true)
+                                 ?? device.GetComponentInParent<NiceHouse.EnvironmentControl.WindowController>();
+                    if (window != null && !window.IsOn)
+                    {
+                        window.TurnOn();
+                        openedAny = true;
+                    }
+                }
+            }
+
+            if (openedAny)
+            {
+                // 记录“全局打开”，使用特殊 key 以便后续关闭全部由告警打开的窗
+                _alarmOpenedWindows.Add("*global*");
+                Debug.Log($"[AlarmResponseHelper] Auto-opened ALL windows due to {type}, candidates={candidateCount}");
+            }
+            else
+            {
+                Debug.LogWarning($"[AlarmResponseHelper] No windows opened for {type}. candidates={candidateCount}, DeviceManager null? {DeviceManager.Instance == null}");
+            }
+        }
+
+        /// <summary>
+        /// 告警被标记处理后，可调用此方法关闭因告警打开的窗户
+        /// （支持按房间或全局，外部在标记 handled 时调用，以免影响手动开窗）
+        /// </summary>
+        public void CloseWindowsForRoomIfOpenedByAlarm(string roomId)
+        {
+            bool isGlobal = string.IsNullOrEmpty(roomId) || roomId == "*global*";
+
+            if (!isGlobal && !_alarmOpenedWindows.Contains(roomId) && !_alarmOpenedWindows.Contains("*global*")) return;
+            if (DeviceManager.Instance == null) return;
+
+            IEnumerable<DeviceDefinition> devices = isGlobal
+                ? DeviceManager.Instance.GetAllDevices().Values
+                : DeviceManager.Instance.GetDevicesInRoom(roomId);
+
+            foreach (var device in devices)
+            {
+                if (device.type == NiceHouse.Data.DeviceType.Window)
+                {
+                    var window = device.GetComponent<NiceHouse.EnvironmentControl.WindowController>()
+                                 ?? device.GetComponentInChildren<NiceHouse.EnvironmentControl.WindowController>(includeInactive: true)
+                                 ?? device.GetComponentInParent<NiceHouse.EnvironmentControl.WindowController>();
+                    if (window != null && window.IsOn)
+                    {
+                        window.TurnOff();
+                    }
+                }
+            }
+
+            if (isGlobal)
+            {
+                _alarmOpenedWindows.Remove("*global*");
+            }
+            else
+            {
+                _alarmOpenedWindows.Remove(roomId);
+            }
+        }
+
+        /// <summary>
+        /// 在告警被外部标记 handled 时调用，批量关闭因告警打开的窗户
+        /// </summary>
+        public void CloseWindowsForHandledAlarms(IEnumerable<AlarmRecord> handledAlarms)
+        {
+            if (handledAlarms == null) return;
+            foreach (var alarm in handledAlarms)
+            {
+                CloseWindowsForRoomIfOpenedByAlarm(alarm.roomId);
+            }
+        }
+
+        /// <summary>
         /// 停止房间灯光闪烁
         /// </summary>
         public void StopRoomLightFlash(string roomId)
@@ -375,6 +523,9 @@ namespace NiceHouse.SmartMonitoring
                 }
                 _roomFlashCoroutines.Remove(roomId);
             }
+
+            // 如果此前有按房间记录的告警开窗，顺便关闭
+            CloseWindowsForRoomIfOpenedByAlarm(roomId);
         }
 
         /// <summary>
@@ -404,6 +555,9 @@ namespace NiceHouse.SmartMonitoring
                     }
                 }
             }
+
+            // 全局报警灯停闪时，关闭因告警全局打开的窗
+            CloseWindowsForRoomIfOpenedByAlarm("*global*");
         }
 
         /// <summary>
@@ -423,6 +577,9 @@ namespace NiceHouse.SmartMonitoring
 
             // 停止全局报警灯
             StopGlobalAlarmLight();
+
+             // 一并关闭所有因告警打开的窗
+             CloseWindowsForRoomIfOpenedByAlarm("*global*");
         }
 
         /// <summary>

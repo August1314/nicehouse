@@ -7,7 +7,7 @@ namespace NiceHouse.UI
 {
     /// <summary>
     /// 环境数值设置面板
-    /// 允许用户手动设置环境温度、PM2.5、烟雾浓度（PM10）、电力能耗
+    /// 允许用户手动设置环境温度、PM2.5、烟雾浓度、电力能耗
     /// 面板半透明，位于屏幕右上角
     /// </summary>
     public class EnvironmentValueSetter : MonoBehaviour
@@ -19,7 +19,7 @@ namespace NiceHouse.UI
         [Header("数值设置")]
         public TMP_InputField temperatureInput;
         public TMP_InputField pm25Input;
-        public TMP_InputField smokeInput; // PM10 作为烟雾浓度
+        public TMP_InputField smokeInput; // 烟雾浓度（从SafetyDataStore）
         public TMP_InputField energyInput; // 总电力能耗
 
         [Header("按钮")]
@@ -54,12 +54,6 @@ namespace NiceHouse.UI
 
             // 初始化显示当前值
             UpdateUIFromData();
-
-            // 设置能耗输入框为只读（显示用）
-            if (energyInput != null)
-            {
-                energyInput.readOnly = true;
-            }
         }
 
         private void InitializeRoomDropdown()
@@ -113,15 +107,25 @@ namespace NiceHouse.UI
                 if (pm25Input != null)
                     pm25Input.text = envData.pm25.ToString("F1");
 
+                // 从SafetyDataStore获取烟雾浓度
                 if (smokeInput != null)
-                    smokeInput.text = envData.pm10.ToString("F1");
+                {
+                    if (SafetyDataStore.Instance != null &&
+                        SafetyDataStore.Instance.TryGetRoomSafety(currentRoomId, out var safetyData))
+                    {
+                        smokeInput.text = safetyData.smokeLevel.ToString("F1");
+                    }
+                    else
+                    {
+                        smokeInput.text = "0.0";
+                    }
+                }
             }
 
-            // 总能耗（所有设备的累计）
-            if (EnergyManager.Instance != null && energyInput != null)
+            // 总能耗（可设置的值）
+            if (energyInput != null && EnvironmentDataStore.Instance.TryGetRoomData(currentRoomId, out var envDataForEnergy))
             {
-                float totalConsumption = EnergyManager.Instance.GetTotalDailyConsumption();
-                energyInput.text = totalConsumption.ToString("F2");
+                energyInput.text = envDataForEnergy.energy.ToString("F2");
             }
         }
 
@@ -143,16 +147,23 @@ namespace NiceHouse.UI
                 envData.pm25 = pm25;
             }
 
-            // 解析并设置烟雾浓度（PM10）
+            // 解析并设置烟雾浓度
             if (float.TryParse(smokeInput.text, out float smoke))
             {
-                envData.pm10 = smoke;
+                if (SafetyDataStore.Instance != null)
+                {
+                    var safetyData = SafetyDataStore.Instance.GetOrCreateRoomSafety(currentRoomId);
+                    safetyData.smokeLevel = smoke;
+                }
             }
 
-            // 电力能耗设置（这里暂时只显示，不设置，因为能耗是计算出来的）
-            // 如果需要设置，可以考虑添加一个总能耗的字段
+            // 解析并设置电力能耗
+            if (float.TryParse(energyInput.text, out float energy))
+            {
+                envData.energy = energy;
+            }
 
-            Debug.Log($"Applied values for room {currentRoomId}: Temp={envData.temperature}, PM2.5={envData.pm25}, Smoke={envData.pm10}");
+            Debug.Log($"Applied values for room {currentRoomId}: Temp={envData.temperature}, PM2.5={envData.pm25}, Smoke={smoke}, Energy={envData.energy}");
         }
 
         private void ResetToCurrentValues()

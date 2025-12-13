@@ -70,6 +70,16 @@ namespace NiceHouse.EnvironmentControl
         [Tooltip("按钮宽度")]
         public float buttonWidth = 80f;
 
+        [Header("空调温度步进设置")]
+        [Tooltip("温度步进值（℃）")]
+        public float airconTempStep = 1f;
+        [Tooltip("温度下限（℃）")]
+        public float airconTempMin = 16f;
+        [Tooltip("温度上限（℃）")]
+        public float airconTempMax = 30f;
+        [Tooltip("空调关闭时是否禁用步进按钮")]
+        public bool disableTempWhenOff = false;
+
         [Header("模式切换")]
         public Toggle autoModeToggle;
         public TextMeshProUGUI modeText;
@@ -646,6 +656,16 @@ namespace NiceHouse.EnvironmentControl
                         case NiceHouse.Data.DeviceType.FreshAirSystem:
                             controller = device.GetComponent<FreshAirController>();
                             break;
+                        case NiceHouse.Data.DeviceType.Window:
+                    controller = device.GetComponent<WindowController>()
+                                 ?? device.GetComponentInChildren<WindowController>(includeInactive: true)
+                                 ?? device.GetComponentInParent<WindowController>();
+                            break;
+                        case NiceHouse.Data.DeviceType.Curtain:
+                    controller = device.GetComponent<CurtainController>()
+                                 ?? device.GetComponentInChildren<CurtainController>(includeInactive: true)
+                                 ?? device.GetComponentInParent<CurtainController>();
+                            break;
                         case NiceHouse.Data.DeviceType.Light:
                             // 优先查找 AlarmLightController，如果没有则查找 LightController
                             controller = device.GetComponent<AlarmLightController>();
@@ -915,6 +935,84 @@ namespace NiceHouse.EnvironmentControl
                 buttonText.color = Color.white;
                 buttonText.alignment = TextAlignmentOptions.Center | TextAlignmentOptions.Midline;
                 buttonText.raycastTarget = false;
+
+                // 空调目标温度步进（仅在空调设备上启用）
+                if (device.type == NiceHouse.Data.DeviceType.AirConditioner)
+                {
+                    GameObject tempGroupObj = new GameObject("TempStepper");
+                    tempGroupObj.transform.SetParent(itemObj.transform, false);
+                    RectTransform tempGroupRect = tempGroupObj.AddComponent<RectTransform>();
+                    tempGroupRect.sizeDelta = new Vector2(140f, deviceItemHeight - 10f);
+
+                    HorizontalLayoutGroup tempGroupLayout = tempGroupObj.AddComponent<HorizontalLayoutGroup>();
+                    tempGroupLayout.spacing = 6f;
+                    tempGroupLayout.padding = new RectOffset(4, 4, 4, 4);
+                    tempGroupLayout.childControlWidth = false;
+                    tempGroupLayout.childControlHeight = true;
+                    tempGroupLayout.childForceExpandWidth = false;
+                    tempGroupLayout.childForceExpandHeight = true;
+                    tempGroupLayout.childAlignment = TextAnchor.MiddleCenter;
+
+                    LayoutElement tempGroupLE = tempGroupObj.AddComponent<LayoutElement>();
+                    tempGroupLE.preferredWidth = 140f;
+                    tempGroupLE.flexibleWidth = 0f;
+
+                    // Minus
+                    GameObject minusObj = new GameObject("MinusButton");
+                    minusObj.transform.SetParent(tempGroupObj.transform, false);
+                    RectTransform minusRect = minusObj.AddComponent<RectTransform>();
+                    minusRect.sizeDelta = new Vector2(36f, deviceItemHeight - 18f);
+                    Image minusImage = minusObj.AddComponent<Image>();
+                    minusImage.color = new Color(0.2f, 0.6f, 1f);
+                    Button minusButton = minusObj.AddComponent<Button>();
+                    minusButton.onClick.AddListener(() => AdjustAirconTarget(device, -airconTempStep));
+                    TextMeshProUGUI minusText = new GameObject("Text").AddComponent<TextMeshProUGUI>();
+                    minusText.transform.SetParent(minusObj.transform, false);
+                    RectTransform minusTextRect = minusText.GetComponent<RectTransform>();
+                    minusTextRect.anchorMin = Vector2.zero;
+                    minusTextRect.anchorMax = Vector2.one;
+                    minusTextRect.sizeDelta = Vector2.zero;
+                    minusText.text = "-";
+                    minusText.fontSize = 18f;
+                    minusText.alignment = TextAlignmentOptions.Center;
+                    minusText.color = Color.white;
+                    minusText.raycastTarget = false;
+
+                    // Temp text
+                    GameObject tempTextObj = new GameObject("TempText");
+                    tempTextObj.transform.SetParent(tempGroupObj.transform, false);
+                    RectTransform tempTextRect = tempTextObj.AddComponent<RectTransform>();
+                    tempTextRect.sizeDelta = new Vector2(60f, deviceItemHeight - 18f);
+                    LayoutElement tempTextLE = tempTextObj.AddComponent<LayoutElement>();
+                    tempTextLE.preferredWidth = 60f;
+                    TextMeshProUGUI tempText = tempTextObj.AddComponent<TextMeshProUGUI>();
+                    tempText.fontSize = 16f;
+                    tempText.color = Color.white;
+                    tempText.alignment = TextAlignmentOptions.Center;
+                    tempText.raycastTarget = false;
+                    tempText.text = "--";
+
+                    // Plus
+                    GameObject plusObj = new GameObject("PlusButton");
+                    plusObj.transform.SetParent(tempGroupObj.transform, false);
+                    RectTransform plusRect = plusObj.AddComponent<RectTransform>();
+                    plusRect.sizeDelta = new Vector2(36f, deviceItemHeight - 18f);
+                    Image plusImage = plusObj.AddComponent<Image>();
+                    plusImage.color = new Color(0.2f, 0.6f, 1f);
+                    Button plusButton = plusObj.AddComponent<Button>();
+                    plusButton.onClick.AddListener(() => AdjustAirconTarget(device, airconTempStep));
+                    TextMeshProUGUI plusText = new GameObject("Text").AddComponent<TextMeshProUGUI>();
+                    plusText.transform.SetParent(plusObj.transform, false);
+                    RectTransform plusTextRect = plusText.GetComponent<RectTransform>();
+                    plusTextRect.anchorMin = Vector2.zero;
+                    plusTextRect.anchorMax = Vector2.one;
+                    plusTextRect.sizeDelta = Vector2.zero;
+                    plusText.text = "+";
+                    plusText.fontSize = 18f;
+                    plusText.alignment = TextAlignmentOptions.Center;
+                    plusText.color = Color.white;
+                    plusText.raycastTarget = false;
+                }
             }
 
             _deviceItems[device.deviceId] = itemObj;
@@ -932,18 +1030,25 @@ namespace NiceHouse.EnvironmentControl
 
             if (deviceItemPrefab == null)
             {
-                var texts = itemObj.GetComponentsInChildren<TextMeshProUGUI>();
-                var buttons = itemObj.GetComponentsInChildren<Button>();
+                var texts = itemObj.GetComponentsInChildren<TextMeshProUGUI>(true);
+                var buttons = itemObj.GetComponentsInChildren<Button>(true);
                 
                 // 更新状态文本
                 TextMeshProUGUI statusText = null;
                 Button toggleButton = null;
+                TextMeshProUGUI tempText = null;
+                Button minusButton = null;
+                Button plusButton = null;
                 
                 foreach (var text in texts)
                 {
                     if (text.name == "Status")
                     {
                         statusText = text;
+                    }
+                    else if (text.name == "TempText")
+                    {
+                        tempText = text;
                     }
                 }
                 
@@ -952,6 +1057,14 @@ namespace NiceHouse.EnvironmentControl
                     if (button.name == "ToggleButton")
                     {
                         toggleButton = button;
+                    }
+                    else if (button.name == "MinusButton")
+                    {
+                        minusButton = button;
+                    }
+                    else if (button.name == "PlusButton")
+                    {
+                        plusButton = button;
                     }
                 }
 
@@ -981,6 +1094,22 @@ namespace NiceHouse.EnvironmentControl
                         buttonImage.color = isOn ? new Color(1f, 0.4f, 0.4f) : new Color(0.2f, 0.6f, 1f);
                     }
                 }
+
+                // 空调目标温度显示 & 按钮可用性
+                if (device.type == NiceHouse.Data.DeviceType.AirConditioner)
+                {
+                    var acController = device.GetComponent<AirConditionerController>();
+                    if (tempText != null)
+                    {
+                        tempText.text = acController != null
+                            ? $"{Mathf.Clamp(acController.targetTemperature, airconTempMin, airconTempMax):0.#}°C"
+                            : "N/A";
+                    }
+
+                    bool interactable = acController != null && (!disableTempWhenOff || isOn);
+                    if (minusButton != null) minusButton.interactable = interactable;
+                    if (plusButton != null) plusButton.interactable = interactable;
+                }
             }
             else
             {
@@ -1007,6 +1136,23 @@ namespace NiceHouse.EnvironmentControl
 
             bool isOn = controller.IsOn;
             envController.ManualControlDeviceById(deviceId, !isOn);
+        }
+
+        /// <summary>
+        /// 调整空调目标温度（步进）
+        /// </summary>
+        private void AdjustAirconTarget(DeviceDefinition device, float delta)
+        {
+            if (device == null || device.type != NiceHouse.Data.DeviceType.AirConditioner) return;
+
+            var acController = device.GetComponent<AirConditionerController>();
+            if (acController == null) return;
+
+            float newTemp = Mathf.Clamp(acController.targetTemperature + delta, airconTempMin, airconTempMax);
+            acController.SetTargetTemperature(newTemp);
+
+            // 立即刷新对应 UI
+            UpdateDeviceItem(device);
         }
     }
 

@@ -23,6 +23,9 @@ namespace NiceHouse.LayeredVisualization
 
         [Tooltip("地面上抬起的高度，避免与模型 Z-fighting。")]
         public float heightOffset = 0.03f;
+        
+        [Tooltip("是否使用GameObject的Y坐标作为基准高度。如果启用，热力图会使用此GameObject的Y坐标+heightOffset；如果禁用，会使用房间地板高度+heightOffset。")]
+        public bool useGameObjectYAsBase = true;
 
         [Header("可视化")]
         public Material heatmapMaterial;
@@ -124,7 +127,20 @@ namespace NiceHouse.LayeredVisualization
             float maxX = total.max.x;
             float minZ = total.min.z;
             float maxZ = total.max.z;
-            float y = total.min.y + heightOffset;
+            
+            // 根据设置决定使用哪个Y坐标作为基准
+            float baseY;
+            if (useGameObjectYAsBase)
+            {
+                // 使用GameObject的Y坐标作为基准（这样可以通过调整GameObject位置来控制热力图高度）
+                baseY = transform.position.y;
+            }
+            else
+            {
+                // 使用房间地板高度作为基准（原来的行为）
+                baseY = total.min.y;
+            }
+            float y = baseY + heightOffset;
 
             int countX = Mathf.CeilToInt((maxX - minX) / cellSize);
             int countZ = Mathf.CeilToInt((maxZ - minZ) / cellSize);

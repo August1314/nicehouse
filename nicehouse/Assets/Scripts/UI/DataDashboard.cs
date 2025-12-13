@@ -182,19 +182,10 @@ namespace NiceHouse.UI
         {
             if (energyText == null) return;
 
-            if (EnergyManager.Instance != null)
+            if (EnvironmentDataStore.Instance != null &&
+                EnvironmentDataStore.Instance.TryGetRoomData(currentRoomId, out var env))
             {
-                // 计算当前房间所有设备的累计能耗
-                float totalEnergy = 0f;
-                if (DeviceManager.Instance != null)
-                {
-                    var devices = DeviceManager.Instance.GetDevicesInRoom(currentRoomId);
-                    foreach (var device in devices)
-                    {
-                        totalEnergy += EnergyManager.Instance.GetDeviceDailyConsumption(device.deviceId);
-                    }
-                }
-                energyText.text = $"<color=#CCCCCC>Energy:</color> <b>{totalEnergy:F4}</b> <color=#CCCCCC>kWh</color>";
+                energyText.text = $"<color=#CCCCCC>Energy:</color> <b>{env.energy:F2}</b> <color=#CCCCCC>kWh</color>";
             }
             else
             {

@@ -50,6 +50,52 @@ namespace NiceHouse.Data
             }
         }
 
+        private void Start()
+        {
+            // 在启动时立即初始化所有房间的初始值，避免数据为0
+            InitializeRoomData();
+        }
+
+        /// <summary>
+        /// 初始化所有房间的环境数据为配置的基础值（不添加波动）
+        /// </summary>
+        private void InitializeRoomData()
+        {
+            if (EnvironmentDataStore.Instance == null)
+            {
+                Debug.LogWarning("[EnvironmentDataSimulator] EnvironmentDataStore.Instance is null, cannot initialize room data.");
+                return;
+            }
+
+            foreach (var cfg in roomConfigs)
+            {
+                if (string.IsNullOrEmpty(cfg.roomId)) continue;
+
+                var data = EnvironmentDataStore.Instance.GetOrCreateRoomData(cfg.roomId);
+
+                // 初始化温度（如果启用模拟或需要初始值）
+                if (simulateTemperature || Mathf.Abs(data.temperature) < 0.1f)
+                {
+                    data.temperature = cfg.baseTemperature;
+                }
+
+                // 初始化湿度（如果启用模拟或需要初始值）
+                if (simulateHumidity || Mathf.Abs(data.humidity) < 0.1f)
+                {
+                    data.humidity = cfg.baseHumidity;
+                }
+
+                // 初始化PM2.5（如果启用模拟或需要初始值）
+                if (simulatePm25 || Mathf.Abs(data.pm25) < 0.1f)
+                {
+                    data.pm25 = cfg.basePm25;
+                    data.pm10 = cfg.basePm25 * 1.2f; // PM10通常是PM2.5的1.2倍
+                }
+            }
+
+            Debug.Log($"[EnvironmentDataSimulator] Initialized {roomConfigs.Count} rooms with base values.");
+        }
+
         private void InitializeDefaultConfigs()
         {
             roomConfigs = new List<RoomEnvironmentConfig>();

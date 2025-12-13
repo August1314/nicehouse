@@ -138,19 +138,38 @@ namespace NiceHouse.Interaction
 
         public void ToggleDoor()
         {
-            // 保留原有的简单旋转逻辑（0/90 切换）
-            var rotation = transform.rotation;
-            var targetAngleIsOpen = rotation.eulerAngles.y == 0f; // 当前0则即将开门
-            var targetAngle = targetAngleIsOpen ? 90f : 0f;
-            transform.rotation = Quaternion.Euler(rotation.eulerAngles.x, targetAngle, rotation.eulerAngles.z);
-
-            // 播放音效（不影响原逻辑）
-            if (doorAudio != null)
+            // 使用 DoorController 来控制门的开关（支持平滑动画和自定义角度）
+            if (doorController != null)
             {
-                if (targetAngleIsOpen)
-                    doorAudio.PlayOpen();
-                else
-                    doorAudio.PlayClose();
+                // 在切换前判断当前状态，用于播放正确的音效
+                bool wasOpen = doorController.IsDoorOpen;
+                doorController.Toggle();
+                
+                // 播放音效
+                if (doorAudio != null)
+                {
+                    if (!wasOpen) // 即将开门
+                        doorAudio.PlayOpen();
+                    else // 即将关门
+                        doorAudio.PlayClose();
+                }
+            }
+            else
+            {
+                // 如果没有 DoorController，使用简单的回退逻辑
+                var rotation = transform.rotation;
+                var targetAngleIsOpen = rotation.eulerAngles.y == 0f; // 当前0则即将开门
+                var targetAngle = targetAngleIsOpen ? 90f : 0f;
+                transform.rotation = Quaternion.Euler(rotation.eulerAngles.x, targetAngle, rotation.eulerAngles.z);
+
+                // 播放音效
+                if (doorAudio != null)
+                {
+                    if (targetAngleIsOpen)
+                        doorAudio.PlayOpen();
+                    else
+                        doorAudio.PlayClose();
+                }
             }
         }
 

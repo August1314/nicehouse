@@ -157,6 +157,8 @@ namespace NiceHouse.Interaction
                         NiceHouse.Data.DeviceType.AirPurifier => "Air Purifier",
                         NiceHouse.Data.DeviceType.FreshAirSystem => "Fresh Air System",
                         NiceHouse.Data.DeviceType.Light => "Light",
+                        NiceHouse.Data.DeviceType.Window => "Window",
+                        NiceHouse.Data.DeviceType.Curtain => "Curtain",
                         _ => "Device"
                     };
 
