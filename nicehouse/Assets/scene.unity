@@ -9164,6 +9164,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 6070239473643371796, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 907409070}
+    - targetCorrespondingSourceObject: {fileID: 6070239473643371796, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 907409075}
+    - targetCorrespondingSourceObject: {fileID: 6070239473643371796, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 907409076}
     - targetCorrespondingSourceObject: {fileID: -7318072807127031672, guid: 370cfdf208b8446a7afad7f2b62bf3f8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1552953923}
@@ -19038,7 +19044,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1828713}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.9851057
+  m_Size: 0.879383
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -21650,6 +21656,50 @@ MonoBehaviour:
   deviceId: Air Purifier
   type: 2
   roomId: LivingRoom01
+--- !u!114 &907409075
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907409062}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adc874ed515d8448fa1a9b74fd8be503, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hoverHint: Click to toggle
+  clickSound: {fileID: 0}
+  enableDebugLog: 0
+--- !u!114 &907409076
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907409062}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16c5e074131624d558f062ddb3925a3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  combinedClip: {fileID: 8300000, guid: 55a6d1dcd9344684fba1a665badcce64, type: 3}
+  startBegin: 1.3
+  startEnd: 2.8
+  firstLoopBegin: 10.5
+  loopSliceBegin: 13
+  loopSliceEnd: 25
+  stopBegin: 26.5
+  loopStartDelay: 2
+  loopReplayOffset: 0
+  loopTailGuard: 0.05
+  startVolume: 1
+  loopVolume: 0.6
+  stopVolume: 1
+  enable3DAttenuation: 1
+  minDistance: 2
+  maxDistance: 13
+  spatialBlend: 1
 --- !u!1 &908520187
 GameObject:
   m_ObjectHideFlags: 0
@@ -35711,7 +35761,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -159.67743, y: -236.1399}
+  m_AnchoredPosition: {x: -159.67743, y: -273.15686}
   m_SizeDelta: {x: 100, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1646590282
