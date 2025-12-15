@@ -37,6 +37,14 @@ namespace NiceHouse.EnvironmentControl
         [Tooltip("是否输出调试日志")]
         public bool enableDebugLog = false;
 
+        [Header("节能设置")]
+        [Tooltip("触发节能后保持节能的持续时间（秒），期间不会自动重新开启空调）")]
+        public float energySavingDuration = 300f;
+
+        // 节能状态
+        private bool energySavingActive = false;
+        private float energySavingEndTime = 0f;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -111,6 +119,9 @@ namespace NiceHouse.EnvironmentControl
             {
                 CheckRoomEnvironment(room.roomId);
             }
+            
+            // 检查电力消耗
+            CheckEnergyConsumption();
         }
 
         /// <summary>
@@ -278,6 +289,15 @@ namespace NiceHouse.EnvironmentControl
                 return;
             }
 
+            if (energySavingActive)
+            {
+                if (enableDebugLog)
+                {
+                    Debug.Log($"[EnvironmentController] Skipping TriggerCooling for {roomId} because energy saving is active");
+                }
+                return;
+            }
+
             var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
             foreach (var device in devices)
             {
@@ -304,6 +324,15 @@ namespace NiceHouse.EnvironmentControl
         {
             if (DeviceManager.Instance == null)
             {
+                return;
+            }
+
+            if (energySavingActive)
+            {
+                if (enableDebugLog)
+                {
+                    Debug.Log($"[EnvironmentController] Skipping TriggerHeating for {roomId} because energy saving is active");
+                }
                 return;
             }
 
@@ -496,6 +525,167 @@ namespace NiceHouse.EnvironmentControl
             else
             {
                 Debug.LogWarning($"[EnvironmentController] Device {deviceId} does not have a BaseDeviceController");
+            }
+        }
+
+        /// <summary>
+        /// 检查电力消耗并触发联动
+        /// </summary>
+        private void CheckEnergyConsumption()
+        {
+            if (EnergyManager.Instance == null)
+            {
+                Debug.LogError("[EnvironmentController] EnergyManager.Instance is null");
+                return;
+            }
+
+            if (thresholds == null)
+            {
+                Debug.LogError("[EnvironmentController] thresholds is null in CheckEnergyConsumption");
+                return;
+            }
+
+            // 计算所有房间的总能耗（从EnvironmentDataStore获取）
+            float totalConsumption = 0f;
+            if (EnvironmentDataStore.Instance != null)
+            {
+                var allRoomData = EnvironmentDataStore.Instance.GetAllRoomData();
+                foreach (var roomData in allRoomData.Values)
+                {
+                    totalConsumption += roomData.energy;
+                }
+            }
+
+            // 备选：使用EnergyManager的总能耗（基于设备运行时间计算）
+            float energyManagerTotal = 0f;
+            if (EnergyManager.Instance != null)
+            {
+                energyManagerTotal = EnergyManager.Instance.GetTotalDailyConsumption();
+            }
+
+            float threshold = thresholds.energyConsumptionThreshold;
+
+            Debug.Log($"[EnvironmentController] Checking energy - UI Total: {totalConsumption:F2} kWh, Device Total: {energyManagerTotal:F2} kWh, Threshold: {threshold:F2} kWh");
+
+            // 如果当前处于节能模式且已到期，取消节能标记
+            if (energySavingActive && Time.time >= energySavingEndTime)
+            {
+                energySavingActive = false;
+                Debug.Log("[EnvironmentController] Energy saving period ended; auto control restored");
+            }
+
+            if (totalConsumption > threshold)
+            {
+                Debug.LogWarning($"[EnvironmentController] Energy consumption exceeded threshold: {totalConsumption:F2} kWh/day > {threshold:F2} kWh/day");
+
+                // 列出当前已注册设备及其空调控制器状态，便于诊断
+                if (DeviceManager.Instance != null)
+                {
+                    var allDevices = DeviceManager.Instance.GetAllDevices();
+                    Debug.Log($"[EnvironmentController] Total devices registered: {allDevices.Count}");
+                    foreach (var kvp in allDevices)
+                    {
+                        var dev = kvp.Value;
+                        string id = string.IsNullOrEmpty(dev.deviceId) ? "(no-id)" : dev.deviceId;
+                        string type = dev.type.ToString();
+                        var acCtrl = dev.GetComponent<AirConditionerController>()
+                                     ?? dev.GetComponentInChildren<AirConditionerController>(true)
+                                     ?? dev.GetComponentInParent<AirConditionerController>();
+                        bool acFound = acCtrl != null;
+                        bool acOn = acFound && acCtrl.IsOn;
+                        Debug.Log($"[EnvironmentController] Device '{id}' Type:{type} ACFound:{acFound} ACIsOn:{acOn}");
+                    }
+                }
+
+                if (!energySavingActive)
+                {
+                    energySavingActive = true;
+                    energySavingEndTime = Time.time + energySavingDuration;
+                    Debug.Log($"[EnvironmentController] Entering energy saving mode for {energySavingDuration} seconds");
+                    TriggerEnergySaving();
+                }
+                else
+                {
+                    Debug.Log("[EnvironmentController] Energy saving already active");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 触发节能模式：关闭所有空调
+        /// </summary>
+        private void TriggerEnergySaving()
+        {
+            if (DeviceManager.Instance == null)
+            {
+                Debug.LogWarning("[EnvironmentController] DeviceManager.Instance is null in TriggerEnergySaving");
+                return;
+            }
+
+            var allDevices = DeviceManager.Instance.GetAllDevices();
+            Debug.Log($"[EnvironmentController] Starting energy saving - checking {allDevices.Count} devices for air conditioners");
+
+            int acCount = 0;
+            int acTurnedOff = 0;
+
+            foreach (var kvp in allDevices)
+            {
+                var device = kvp.Value;
+                if (device.type == NiceHouse.Data.DeviceType.AirConditioner)
+                {
+                    acCount++;
+                    string roomInfo = string.IsNullOrEmpty(device.roomId) ? "(unknown room)" : device.roomId;
+
+                    Debug.Log($"[EnvironmentController] Found AirConditioner: {device.deviceId} in room {roomInfo}");
+
+                    var controller = device.GetComponent<AirConditionerController>()
+                                     ?? device.GetComponentInChildren<AirConditionerController>(true)
+                                     ?? device.GetComponentInParent<AirConditionerController>();
+
+                    if (controller != null)
+                    {
+                        if (controller.IsOn)
+                        {
+                            controller.TurnOff();
+                            acTurnedOff++;
+                            // 确保能耗记录停止
+                            if (!string.IsNullOrEmpty(device.deviceId) && EnergyManager.Instance != null)
+                            {
+                                EnergyManager.Instance.StopConsume(device.deviceId);
+                            }
+                            Debug.Log($"[EnvironmentController] Auto-turned OFF AirConditioner {device.deviceId} (room: {roomInfo}) for energy saving");
+                        }
+                        else
+                        {
+                            Debug.Log($"[EnvironmentController] AirConditioner {device.deviceId} (room: {roomInfo}) already OFF");
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[EnvironmentController] AirConditioner controller not found on device {device.deviceId} (room: {roomInfo})");
+                    }
+                }
+            }
+
+            Debug.Log($"[EnvironmentController] Energy saving completed - Found {acCount} ACs, turned off {acTurnedOff}");
+
+            // 特别检查卧室空调
+            bool bedroomACFound = false;
+            foreach (var kvp in allDevices)
+            {
+                var device = kvp.Value;
+                if (device.type == NiceHouse.Data.DeviceType.AirConditioner &&
+                    !string.IsNullOrEmpty(device.roomId) &&
+                    device.roomId.Contains("Bed"))
+                {
+                    bedroomACFound = true;
+                    Debug.Log($"[EnvironmentController] Bedroom AC detected: {device.deviceId} in {device.roomId}");
+                }
+            }
+
+            if (!bedroomACFound)
+            {
+                Debug.LogWarning("[EnvironmentController] No bedroom air conditioners found! Make sure bedroom ACs have roomId containing 'Bed'");
             }
         }
     }

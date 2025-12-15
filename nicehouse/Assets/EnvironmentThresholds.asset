@@ -19,3 +19,4 @@ MonoBehaviour:
   targetTemperature: 24
   humidityHighThreshold: 70
   humidityLowThreshold: 30
+  energyConsumptionThreshold: 10

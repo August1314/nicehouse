@@ -98,13 +98,11 @@ RectTransform：
 - **Width**: 120
 - **Height**: 30
 
-#### 电力能耗显示
+#### 电力能耗输入
 1. 右键点击Panel → **UI** → **TextMeshPro - Input Field**
 2. 重命名为 `EnergyInput`
 3. 设置Placeholder Text为 "能耗 kWh"
-4. **重要**: 设置为只读显示
-   - 取消勾选 **Interactable** (使其不可编辑)
-   - 或者在脚本中设置为只读
+4. **重要**: 保持可编辑状态（用于手动设置能耗值）
 
 RectTransform：
 - **Anchors**: Min(0,1), Max(1,1)

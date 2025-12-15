@@ -32,6 +32,10 @@ namespace NiceHouse.EnvironmentControl
         
         [Tooltip("湿度过低阈值（%）")]
         public float humidityLowThreshold = 30f;
+        
+        [Header("电力消耗阈值")]
+        [Tooltip("电力消耗过高阈值（kWh/天）")]
+        public float energyConsumptionThreshold = 10f;
     }
 }
 
