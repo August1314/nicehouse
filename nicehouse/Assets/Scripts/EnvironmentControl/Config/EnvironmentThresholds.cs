@@ -16,6 +16,10 @@ namespace NiceHouse.EnvironmentControl
         [Tooltip("PM10超标阈值（μg/m³）")]
         public float pm10Threshold = 150f;
         
+        [Header("烟雾阈值")]
+        [Tooltip("烟雾浓度超标阈值")]
+        public float smokeThreshold = 70f;
+        
         [Header("温度阈值")]
         [Tooltip("温度过高阈值（℃）")]
         public float temperatureHighThreshold = 28f;

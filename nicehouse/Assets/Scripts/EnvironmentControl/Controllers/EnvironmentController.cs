@@ -170,6 +170,70 @@ namespace NiceHouse.EnvironmentControl
                 TriggerHumidityControl(roomId);
             }
 
+            // 烟雾浓度检查（从SafetyDataStore获取）
+            if (SafetyDataStore.Instance != null &&
+                SafetyDataStore.Instance.TryGetRoomSafety(roomId, out var safety))
+            {
+                if (enableDebugLog)
+                {
+                    Debug.Log($"[EnvironmentController] Checking smoke in {roomId}: {safety.smokeLevel:F1} > {thresholds.smokeThreshold:F1}");
+                }
+                if (safety.smokeLevel > thresholds.smokeThreshold)
+                {
+                    if (enableDebugLog)
+                    {
+                        Debug.Log($"[EnvironmentController] Smoke threshold exceeded in {roomId}, triggering ventilation");
+                    }
+                    TriggerSmokeVentilation(roomId);
+                }
+                else
+                {
+                    // 如果烟雾回落到阈值以下，尝试结束该房间的烟雾告警并停止告警响应（灯光/开窗）
+                    if (AlarmManager.Instance != null)
+                    {
+                        var unhandled = AlarmManager.Instance.GetUnhandledAlarms();
+                        var toHandle = new System.Collections.Generic.List<NiceHouse.Data.AlarmRecord>();
+                        foreach (var a in unhandled)
+                        {
+                            if (a.type == NiceHouse.Data.AlarmType.Smoke && string.Equals(a.roomId, roomId, System.StringComparison.OrdinalIgnoreCase))
+                            {
+                                toHandle.Add(a);
+                            }
+                        }
+
+                        if (toHandle.Count > 0)
+                        {
+                            foreach (var rec in toHandle)
+                            {
+                                AlarmManager.Instance.MarkHandled(rec);
+                                if (enableDebugLog)
+                                {
+                                    Debug.Log($"[EnvironmentController] Marked smoke alarm handled for {roomId}");
+                                }
+                            }
+
+                            // 停止房间内的告警灯闪烁并关闭因告警打开的窗户
+                            if (NiceHouse.SmartMonitoring.AlarmResponseHelper.Instance != null)
+                            {
+                                NiceHouse.SmartMonitoring.AlarmResponseHelper.Instance.StopRoomLightFlash(roomId);
+                                // 如果没有未处理的告警了，停止全局报警灯闪烁
+                                if (!AlarmManager.Instance.GetUnhandledAlarms().GetEnumerator().MoveNext())
+                                {
+                                    NiceHouse.SmartMonitoring.AlarmResponseHelper.Instance.StopGlobalAlarmLight();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (enableDebugLog)
+                {
+                    Debug.Log($"[EnvironmentController] SafetyDataStore not available or no safety data for {roomId}");
+                }
+            }
+
             ApplyAirPurifierEffect(roomId, env);
         }
 
@@ -388,6 +452,108 @@ namespace NiceHouse.EnvironmentControl
         // 温度告警冷却字典
         private static readonly System.Collections.Generic.Dictionary<string, float> _temperatureAlarmCooldown = 
             new System.Collections.Generic.Dictionary<string, float>();
+
+        /// <summary>
+        /// 触发烟雾通风联动（报警灯闪烁 + 打开窗户）
+        /// </summary>
+        private void TriggerSmokeVentilation(string roomId)
+        {
+            if (DeviceManager.Instance == null)
+            {
+                return;
+            }
+
+            var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
+            if (enableDebugLog)
+            {
+                Debug.Log($"[EnvironmentController] TriggerSmokeVentilation: found {devices.Count} devices in room {roomId}");
+                foreach (var d in devices)
+                {
+                    var id = string.IsNullOrEmpty(d.deviceId) ? "(no-id)" : d.deviceId;
+                    Debug.Log($"[EnvironmentController] Device in room {roomId}: id={id}, type={d.type}, roomId={d.roomId}");
+                    var hasAlarmCtrl = d.GetComponent<AlarmLightController>() != null;
+                    var hasWindowCtrl = d.GetComponent<WindowController>() != null;
+                    var hasFlashing = d.GetComponent<FlashingLight>() != null || (d.GetComponentInChildren<FlashingLight>() != null);
+                    Debug.Log($"[EnvironmentController] Components: AlarmLightController={hasAlarmCtrl}, WindowController={hasWindowCtrl}, FlashingLight={hasFlashing}");
+                }
+            }
+
+                bool alarmLightActivated = false;
+                bool windowOpened = false;
+
+            foreach (var device in devices)
+            {
+                // 激活报警灯
+                if (device.type == NiceHouse.Data.DeviceType.Light)
+                {
+                    var alarmController = device.GetComponent<AlarmLightController>();
+                    if (alarmController != null)
+                    {
+                        bool beforeOn = alarmController.IsOn;
+                        if (enableDebugLog)
+                        {
+                            Debug.Log($"[EnvironmentController] AlarmLight controller found on {device.deviceId}, IsOn before: {beforeOn}");
+                        }
+
+                        if (!alarmController.IsOn)
+                        {
+                            // 尝试开启报警灯，并记录调用前后状态
+                            alarmController.TurnOn();
+                            alarmLightActivated = true;
+                            if (enableDebugLog)
+                            {
+                                Debug.Log($"[EnvironmentController] Called TurnOn() on AlarmLight {device.deviceId}");
+                            }
+                        }
+
+                        if (enableDebugLog)
+                        {
+                            Debug.Log($"[EnvironmentController] AlarmLight {device.deviceId} IsOn after call: {alarmController.IsOn}");
+                            // 尝试输出 flashingLight 状态（如果存在）
+                            var flashing = device.GetComponent<FlashingLight>() ?? device.GetComponentInChildren<FlashingLight>();
+                            if (flashing != null)
+                            {
+                                Debug.Log($"[EnvironmentController] FlashingLight on {device.deviceId}: enableManualTrigger={flashing.enableManualTrigger}, isManuallyFlashing={flashing.IsManuallyFlashing}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (enableDebugLog)
+                        {
+                            Debug.LogWarning($"[EnvironmentController] Device {device.deviceId} type=Light but AlarmLightController missing");
+                        }
+                    }
+                }
+                // 打开窗户
+                else if (device.type == NiceHouse.Data.DeviceType.Window)
+                {
+                    var windowController = device.GetComponent<WindowController>();
+                    if (windowController != null && !windowController.IsOn)
+                    {
+                        windowController.TurnOn();
+                        windowOpened = true;
+                        if (enableDebugLog)
+                        {
+                            Debug.Log($"[EnvironmentController] Auto-opened Window in {roomId} due to smoke");
+                        }
+                    }
+                }
+            }
+
+            // 记录告警（如果设备被激活）
+            if (alarmLightActivated || windowOpened)
+            {
+                if (AlarmManager.Instance != null)
+                {
+                    AlarmManager.Instance.AddAlarm(AlarmType.Smoke, roomId);
+                }
+                if (enableDebugLog)
+                {
+                    Debug.Log($"[EnvironmentController] Smoke ventilation triggered in {roomId} - AlarmLight: {alarmLightActivated}, Window: {windowOpened}");
+                }
+            }
+        }
 
         /// <summary>
         /// 触发湿度控制联动
@@ -687,6 +853,28 @@ namespace NiceHouse.EnvironmentControl
             {
                 Debug.LogWarning("[EnvironmentController] No bedroom air conditioners found! Make sure bedroom ACs have roomId containing 'Bed'");
             }
+        }
+
+        /// <summary>
+        /// 测试烟雾报警功能（在Inspector中调用）
+        /// </summary>
+        [ContextMenu("Test Smoke Alarm")]
+        public void TestSmokeAlarm()
+        {
+            if (SafetyDataStore.Instance == null)
+            {
+                Debug.LogError("[EnvironmentController] SafetyDataStore.Instance is null");
+                return;
+            }
+
+            // 设置测试房间的烟雾浓度超过阈值
+            string testRoomId = "LivingRoom01"; // 可以修改为实际的房间ID
+            SafetyDataStore.Instance.SetSmokeLevel(testRoomId, thresholds.smokeThreshold + 10f);
+
+            Debug.Log($"[EnvironmentController] Test: Set smoke level to {thresholds.smokeThreshold + 10f} in {testRoomId}");
+
+            // 手动触发检查
+            CheckRoomEnvironment(testRoomId);
         }
     }
 }

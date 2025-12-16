@@ -201,7 +201,6 @@ namespace NiceHouse.SmartMonitoring
         private void FlashRoomLights(string roomId, AlarmType type)
         {
             if (DeviceManager.Instance == null) return;
-
             // 停止该房间之前的闪烁协程
             if (_roomFlashCoroutines.ContainsKey(roomId))
             {
@@ -216,9 +215,28 @@ namespace NiceHouse.SmartMonitoring
             List<Light> lights = GetRoomLights(roomId);
             if (lights.Count == 0) return;
 
-            // 启动闪烁协程
-            Coroutine flashCoroutine = StartCoroutine(FlashLightsCoroutine(lights, roomId, type));
-            _roomFlashCoroutines[roomId] = flashCoroutine;
+            // 优先使用 FlashingLight 组件进行闪烁控制（让 FlashingLight 负责 intensity/color）
+            List<Light> legacyLights = new List<Light>();
+            foreach (var light in lights)
+            {
+                var flashing = light.GetComponent<FlashingLight>();
+                if (flashing != null)
+                {
+                    // 强制触发手动闪烁，以便使用 FlashingLight 的闪烁逻辑
+                    flashing.TriggerFlash(force: true);
+                }
+                else
+                {
+                    legacyLights.Add(light);
+                }
+            }
+
+            // 对于没有 FlashingLight 的灯，仍然使用协程进行闪烁
+            if (legacyLights.Count > 0)
+            {
+                Coroutine flashCoroutine = StartCoroutine(FlashLightsCoroutine(legacyLights, roomId, type));
+                _roomFlashCoroutines[roomId] = flashCoroutine;
+            }
         }
 
         /// <summary>
@@ -236,8 +254,26 @@ namespace NiceHouse.SmartMonitoring
                 StopCoroutine(_globalAlarmLightCoroutine);
             }
 
-            // 启动闪烁协程
-            _globalAlarmLightCoroutine = StartCoroutine(FlashLightsCoroutine(globalLights, "Global", type));
+            // 优先使用 FlashingLight 组件进行闪烁控制
+            List<Light> legacyLights = new List<Light>();
+            foreach (var light in globalLights)
+            {
+                var flashing = light.GetComponent<FlashingLight>();
+                if (flashing != null)
+                {
+                    flashing.TriggerFlash(force: true);
+                }
+                else
+                {
+                    legacyLights.Add(light);
+                }
+            }
+
+            if (legacyLights.Count > 0)
+            {
+                // 启动协程处理没有 FlashingLight 的灯
+                _globalAlarmLightCoroutine = StartCoroutine(FlashLightsCoroutine(legacyLights, "Global", type));
+            }
         }
 
         /// <summary>
@@ -524,6 +560,20 @@ namespace NiceHouse.SmartMonitoring
                 _roomFlashCoroutines.Remove(roomId);
             }
 
+            // 停止使用 FlashingLight 触发的手动闪烁
+            if (DeviceManager.Instance != null)
+            {
+                var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
+                foreach (var device in devices)
+                {
+                    var flashing = device.GetComponent<FlashingLight>() ?? device.GetComponentInChildren<FlashingLight>();
+                    if (flashing != null && flashing.IsManuallyFlashing)
+                    {
+                        flashing.StopManualFlash();
+                    }
+                }
+            }
+
             // 如果此前有按房间记录的告警开窗，顺便关闭
             CloseWindowsForRoomIfOpenedByAlarm(roomId);
         }
@@ -539,20 +589,13 @@ namespace NiceHouse.SmartMonitoring
                 _globalAlarmLightCoroutine = null;
             }
 
-            // 恢复全局报警灯的原始状态
-            if (_globalAlarmLights != null)
+            // 停止使用 FlashingLight 触发的手动闪烁（全局）
+            var flashingLights = FindObjectsOfType<FlashingLight>();
+            foreach (var f in flashingLights)
             {
-                foreach (var light in _globalAlarmLights)
+                if (f.IsManuallyFlashing)
                 {
-                    if (light != null)
-                    {
-                        // 尝试从 FlashingLight 获取原始状态
-                        var flashingLight = light.GetComponent<FlashingLight>();
-                        if (flashingLight != null)
-                        {
-                            // FlashingLight 会在 Update 中自动恢复
-                        }
-                    }
+                    f.StopManualFlash();
                 }
             }
 
