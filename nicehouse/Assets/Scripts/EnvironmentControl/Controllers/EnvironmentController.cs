@@ -235,6 +235,48 @@ namespace NiceHouse.EnvironmentControl
             }
 
             ApplyAirPurifierEffect(roomId, env);
+
+            // 如果 PM2.5 降到较低水平，自动关闭净化器以节省能耗
+            try
+            {
+                const float pm25AutoOffThreshold = 20f; // PM2.5 低于此值则自动关闭净化器
+                if (env.pm25 < pm25AutoOffThreshold && DeviceManager.Instance != null)
+                {
+                    var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
+                    int turnedOff = 0;
+                    foreach (var device in devices)
+                    {
+                        if (device.type == NiceHouse.Data.DeviceType.AirPurifier)
+                        {
+                            var controller = device.GetComponent<AirPurifierController>()
+                                             ?? device.GetComponentInChildren<AirPurifierController>(true)
+                                             ?? device.GetComponentInParent<AirPurifierController>();
+                            if (controller != null && controller.IsOn)
+                            {
+                                controller.TurnOff();
+                                turnedOff++;
+                                if (enableDebugLog)
+                                {
+                                    Debug.Log($"[EnvironmentController] Auto-turned OFF AirPurifier {device.deviceId} in {roomId} because PM2.5 dropped to {env.pm25:F1}");
+                                }
+                            }
+                        }
+                    }
+
+                    if (turnedOff > 0 && AlarmManager.Instance != null)
+                    {
+                        // 记录为普通告警/提醒（可选），这里仅输出日志
+                        if (enableDebugLog)
+                        {
+                            Debug.Log($"[EnvironmentController] PM2.5 low in {roomId}; turned off {turnedOff} purifier(s)");
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[EnvironmentController] Exception during PM2.5 auto-off: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -246,8 +288,19 @@ namespace NiceHouse.EnvironmentControl
             {
                 return;
             }
-
             var devices = DeviceManager.Instance.GetDevicesInRoom(roomId);
+            if (enableDebugLog)
+            {
+                Debug.Log($"[EnvironmentController] TriggerAirPurification: found {devices.Count} devices in {roomId}");
+                foreach (var d in devices)
+                {
+                    var id = string.IsNullOrEmpty(d.deviceId) ? "(no-id)" : d.deviceId;
+                    Debug.Log($"[EnvironmentController] Device: id={id}, type={d.type}, roomId={d.roomId}");
+                    var hasPurifier = d.GetComponent<AirPurifierController>() != null;
+                    var hasFreshAir = d.GetComponent<FreshAirController>() != null;
+                    Debug.Log($"[EnvironmentController] Components: AirPurifierController={hasPurifier}, FreshAirController={hasFreshAir}");
+                }
+            }
             bool purifierActivated = false;
             bool freshAirActivated = false;
 
